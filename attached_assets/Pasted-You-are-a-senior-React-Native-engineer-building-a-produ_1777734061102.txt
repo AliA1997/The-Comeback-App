@@ -1,0 +1,147 @@
+You are a senior React Native engineer building a production-ready mobile application using Expo + TypeScript.
+
+Build a "Career Comeback Time Tracker" app designed for developers trying to re-enter the tech industry.
+
+The app is NOT a simple todo list — it is a structured productivity system with time tracking, history, and intelligent suggestions.
+
+-----------------------------------
+CORE FEATURES
+-----------------------------------
+
+1. TASK SYSTEM (Advanced Todo Hybrid)
+- Users can:
+  - Create tasks with:
+    - title
+    - description
+    - category (e.g., "LeetCode", "Projects", "System Design", "Applications")
+    - estimated duration (minutes)
+  - Edit / delete tasks
+  - Mark tasks as "in progress", "completed", or "skipped"
+
+2. TIMER SYSTEM
+- When a task starts:
+  - Start a countdown timer based on estimated duration
+  - Show live timer UI
+  - Allow pause / resume / stop
+- When timer completes:
+  - Trigger a notification sound
+  - Mark task as completed automatically (optional toggle)
+  - Log completion in history
+
+3. HISTORY & ANALYTICS
+- Track:
+  - total time spent per day
+  - completed tasks
+  - streaks (days active)
+- Display:
+  - daily summary
+  - weekly summary
+  - simple charts (bar or list-based if no chart lib)
+
+4. SUGGESTIONS ENGINE
+- Based on history:
+  - Suggest what to do next:
+    Example:
+      "You haven't practiced algorithms in 3 days"
+      "You usually complete React tasks faster in the morning"
+- Provide a "Next Best Task" recommendation button
+
+5. IDLE STATE + AD LOGIC
+- Detect when:
+  - App is open AND
+  - No active task running
+- Every 5 minutes in idle state:
+  - Show interstitial ad
+
+6. ADS INTEGRATION
+- Integrate:
+  - AppLovin MAX SDK
+  - BidMachine SDK
+- Features:
+  - Banner ads fixed at bottom of screen
+  - Interstitial ads triggered ONLY during idle state (NOT during active tasks)
+- Abstract ads into a service:
+  - AdService.ts
+
+7. UI/UX REQUIREMENTS
+- Clean, modern UI using:
+  - React Native + Expo
+  - Tailwind (NativeWind) or styled components
+- Screens:
+  - Dashboard (today overview + quick start)
+  - Tasks screen
+  - Active Timer screen
+  - History screen
+- Use reusable components:
+  - TaskCard
+  - TimerDisplay
+  - StatsCard
+
+8. STATE MANAGEMENT
+- Use:
+  - Zustand or Redux Toolkit (prefer Zustand for simplicity)
+- Persist state locally using:
+  - AsyncStorage
+
+9. NOTIFICATIONS
+- Use Expo Notifications:
+  - Trigger alert when timer finishes
+
+-----------------------------------
+ARCHITECTURE
+-----------------------------------
+
+Organize project as:
+
+/src
+  /components
+  /screens
+  /store
+  /services
+  /hooks
+  /utils
+
+-----------------------------------
+EXTRA INTELLIGENCE (IMPORTANT)
+-----------------------------------
+
+Add a "Career Guidance Mode":
+
+- Based on user activity, generate insights like:
+  - "You are focusing too much on tutorials. Try building a project."
+  - "You completed 5 backend tasks but 0 frontend tasks this week."
+
+- Add a simple rule-based engine (no AI APIs required)
+
+-----------------------------------
+ENV VARIABLES
+-----------------------------------
+
+Use these environment variables:
+
+EXPO_PUBLIC_BASE_API_URL=https://api.alsaqr.app
+EXPO_PUBLIC_BASE_URL=https://www.alsaqr.app
+EXPO_PUBLIC_MEETUP_URL=https://meet.alsaqr.app/
+
+-----------------------------------
+DELIVERABLE
+-----------------------------------
+
+Generate:
+1. Full working Expo React Native project
+2. All screens implemented
+3. Zustand store
+4. Ad service abstraction
+5. Timer logic with hooks
+6. Clean and readable code
+
+-----------------------------------
+GOAL
+-----------------------------------
+
+This app should feel like a serious productivity tool for engineers trying to get back into the industry — not a basic todo app.
+
+Focus on:
+- clean architecture
+- scalability
+- real-world usability
