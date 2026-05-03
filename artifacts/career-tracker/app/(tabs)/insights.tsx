@@ -6,7 +6,8 @@ import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from '
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SuggestionCard } from '@/components/SuggestionCard';
 import { useColors } from '@/hooks/useColors';
-import { useAppStore } from '@/store/useAppStore';
+import { getLastNDays } from '@/lib/dateUtils';
+import { useDayRecords, useTasks } from '@/store/selectors';
 import { generateSuggestions, getNextBestTask } from '@/services/SuggestionEngine';
 import type { TaskCategory } from '@/types';
 
@@ -23,23 +24,17 @@ export default function InsightsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { tasks, dayRecords } = useAppStore();
+  const tasks = useTasks();
+  const dayRecords = useDayRecords();
 
   const suggestions = useMemo(() => generateSuggestions(tasks, dayRecords), [tasks, dayRecords]);
   const nextBest = useMemo(() => getNextBestTask(tasks, dayRecords), [tasks, dayRecords]);
 
-  const last7 = useMemo(() => {
-    const dates: string[] = [];
-    for (let i = 0; i < 7; i++) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      dates.push(d.toISOString().split('T')[0]);
-    }
-    return dates;
-  }, []);
+  const last7 = useMemo(() => getLastNDays(7), []);
 
-  const completedThisWeek = tasks.filter(
-    (t) => t.status === 'completed' && last7.includes(t.date)
+  const completedThisWeek = useMemo(
+    () => tasks.filter((t) => t.status === 'completed' && last7.includes(t.date)),
+    [tasks, last7]
   );
 
   const categoryStats = useMemo(() => {

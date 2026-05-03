@@ -14,8 +14,8 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TaskCard } from '@/components/TaskCard';
 import { useColors } from '@/hooks/useColors';
-import { useAppStore } from '@/store/useAppStore';
-import type { Task, TaskCategory, TaskStatus } from '@/types';
+import { useTasks } from '@/store/selectors';
+import type { TaskCategory, TaskStatus } from '@/types';
 
 const CATEGORIES: (TaskCategory | 'All')[] = [
   'All',
@@ -33,7 +33,7 @@ export default function TasksScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { tasks } = useAppStore();
+  const tasks = useTasks();
 
   const [selectedCategory, setSelectedCategory] = useState<TaskCategory | 'All'>('All');
   const [selectedStatus, setSelectedStatus] = useState<TaskStatus | 'All'>('pending');

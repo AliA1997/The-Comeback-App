@@ -9,7 +9,9 @@ interface Props {
   accent?: boolean;
 }
 
-export function StatsCard({ label, value, sub, accent = false }: Props) {
+export const StatsCard = React.memo(StatsCardImpl);
+
+function StatsCardImpl({ label, value, sub, accent = false }: Props) {
   const colors = useColors();
 
   return (

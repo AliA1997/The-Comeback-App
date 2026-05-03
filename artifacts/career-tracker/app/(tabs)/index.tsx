@@ -1,7 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
-import React, { useMemo } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import {
   Platform,
   ScrollView,
@@ -19,12 +19,10 @@ import { QuickStatsRow } from '@/components/QuickStatsRow';
 import { TaskCard } from '@/components/TaskCard';
 import { useColors } from '@/hooks/useColors';
 import { useIdleDetection } from '@/hooks/useIdleDetection';
-import { useAppStore } from '@/store/useAppStore';
+import { computeStreak, computeTodayStats } from '@/lib/computations';
+import { todayStr } from '@/lib/dateUtils';
+import { useDayRecords, useHydrationState, useTasks } from '@/store/selectors';
 import { generateSuggestions, getNextBestTask } from '@/services/SuggestionEngine';
-
-function todayStr() {
-  return new Date().toISOString().split('T')[0];
-}
 
 function greetingText(): string {
   const h = new Date().getHours();
@@ -37,21 +35,61 @@ export default function DashboardScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { tasks, dayRecords, getTodayStats, getStreak, _hasHydrated, hasSeenLanding } = useAppStore();
+
+  // Granular subscriptions — this screen does NOT re-render on timer ticks.
+  const tasks = useTasks();
+  const dayRecords = useDayRecords();
+  const { hasHydrated, hasSeenLanding } = useHydrationState();
   useIdleDetection();
 
-  const stats = getTodayStats();
-  const streak = getStreak();
   const today = todayStr();
-  const todayTasks = tasks.filter((t) => t.date === today && t.status === 'pending');
-  const completedToday = tasks.filter((t) => t.date === today && t.status === 'completed');
-  const inProgressToday = tasks.filter((t) => t.date === today && t.status === 'in_progress');
 
-  const suggestions = useMemo(() => generateSuggestions(tasks, dayRecords), [tasks, dayRecords]);
+  // All derived data is memoized so it only recomputes when its inputs change.
+  const stats = useMemo(() => computeTodayStats(tasks, dayRecords), [tasks, dayRecords]);
+  const streak = useMemo(() => computeStreak(dayRecords), [dayRecords]);
+
+  const todayTasks = useMemo(
+    () => tasks.filter((t) => t.date === today && t.status === 'pending'),
+    [tasks, today]
+  );
+  const completedToday = useMemo(
+    () => tasks.filter((t) => t.date === today && t.status === 'completed'),
+    [tasks, today]
+  );
+  const inProgressToday = useMemo(
+    () => tasks.filter((t) => t.date === today && t.status === 'in_progress'),
+    [tasks, today]
+  );
+
+  const suggestions = useMemo(
+    () => generateSuggestions(tasks, dayRecords),
+    [tasks, dayRecords]
+  );
   const nextBest = useMemo(() => getNextBestTask(tasks, dayRecords), [tasks, dayRecords]);
-  const topSuggestion = suggestions.find((s) => s.type === 'warning') ?? suggestions[0] ?? null;
+  const topSuggestion = useMemo(
+    () => suggestions.find((s) => s.type === 'warning') ?? suggestions[0] ?? null,
+    [suggestions]
+  );
 
-  const showLanding = _hasHydrated && !hasSeenLanding;
+  const inProgressOthers = useMemo(
+    () => inProgressToday.filter((t) => t.id !== nextBest?.id),
+    [inProgressToday, nextBest]
+  );
+  const todayOthers = useMemo(
+    () => todayTasks.filter((t) => t.id !== nextBest?.id),
+    [todayTasks, nextBest]
+  );
+
+  const handleEdit = useCallback(
+    (id: string) => router.push({ pathname: '/task-form', params: { id } }),
+    [router]
+  );
+  const handleAdd = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    router.push('/task-form');
+  }, [router]);
+
+  const showLanding = hasHydrated && !hasSeenLanding;
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
@@ -76,10 +114,7 @@ export default function DashboardScreen() {
           </View>
           <TouchableOpacity
             style={[styles.addBtn, { backgroundColor: colors.primary }]}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              router.push('/task-form');
-            }}
+            onPress={handleAdd}
             activeOpacity={0.85}
           >
             <Feather name="plus" size={22} color="#fff" />
@@ -120,33 +155,24 @@ export default function DashboardScreen() {
                 <Text style={[styles.recBadgeText, { color: colors.accent }]}>Recommended</Text>
               </View>
             </View>
-            <TaskCard
-              task={nextBest}
-              onEdit={() => router.push({ pathname: '/task-form', params: { id: nextBest.id } })}
-            />
+            <TaskCard task={nextBest} onEdit={() => handleEdit(nextBest.id)} />
           </View>
         ) : null}
 
         {/* In Progress */}
-        {inProgressToday.filter((t) => t.id !== nextBest?.id).length > 0 ? (
+        {inProgressOthers.length > 0 ? (
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, styles.sectionTitleSpaced, { color: colors.foreground }]}>
               In Progress
             </Text>
-            {inProgressToday
-              .filter((t) => t.id !== nextBest?.id)
-              .map((task) => (
-                <TaskCard
-                  key={task.id}
-                  task={task}
-                  onEdit={() => router.push({ pathname: '/task-form', params: { id: task.id } })}
-                />
-              ))}
+            {inProgressOthers.map((task) => (
+              <TaskCard key={task.id} task={task} onEdit={() => handleEdit(task.id)} />
+            ))}
           </View>
         ) : null}
 
         {/* Today's pending tasks */}
-        {todayTasks.filter((t) => t.id !== nextBest?.id).length > 0 ? (
+        {todayOthers.length > 0 ? (
           <View style={styles.section}>
             <View style={styles.sectionRow}>
               <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Today</Text>
@@ -154,16 +180,9 @@ export default function DashboardScreen() {
                 {todayTasks.length} pending
               </Text>
             </View>
-            {todayTasks
-              .filter((t) => t.id !== nextBest?.id)
-              .slice(0, 5)
-              .map((task) => (
-                <TaskCard
-                  key={task.id}
-                  task={task}
-                  onEdit={() => router.push({ pathname: '/task-form', params: { id: task.id } })}
-                />
-              ))}
+            {todayOthers.slice(0, 5).map((task) => (
+              <TaskCard key={task.id} task={task} onEdit={() => handleEdit(task.id)} />
+            ))}
             {todayTasks.length > 6 ? (
               <TouchableOpacity onPress={() => router.push('/(tabs)/tasks' as any)}>
                 <Text style={[styles.viewAll, { color: colors.primary }]}>
@@ -187,7 +206,7 @@ export default function DashboardScreen() {
         ) : null}
 
         {/* Empty state */}
-        {tasks.length === 0 && _hasHydrated && hasSeenLanding ? (
+        {tasks.length === 0 && hasHydrated && hasSeenLanding ? (
           <EmptyState
             icon="briefcase"
             title="Start your comeback"

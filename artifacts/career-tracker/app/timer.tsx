@@ -19,14 +19,25 @@ import { useColors } from '@/hooks/useColors';
 import { useTimer } from '@/hooks/useTimer';
 import { useAppStore } from '@/store/useAppStore';
 
+// Individual action selectors → stable function references → no re-renders.
+function useTimerActions() {
+  const pauseTimer = useAppStore((s) => s.pauseTimer);
+  const resumeTimer = useAppStore((s) => s.resumeTimer);
+  const stopTimer = useAppStore((s) => s.stopTimer);
+  const completeTimer = useAppStore((s) => s.completeTimer);
+  return { pauseTimer, resumeTimer, stopTimer, completeTimer };
+}
+
 export default function TimerScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
-  // useTimer is now read-only — interval is in TimerProvider
+  // useTimer is now read-only — interval is in TimerProvider.
+  // The screen DOES intentionally re-render every second (the user is
+  // actively watching the countdown), but the rest of the app does not.
   const { activeTimer, task } = useTimer();
-  const { pauseTimer, resumeTimer, stopTimer, completeTimer } = useAppStore();
+  const { pauseTimer, resumeTimer, stopTimer, completeTimer } = useTimerActions();
 
   const handlePauseResume = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);

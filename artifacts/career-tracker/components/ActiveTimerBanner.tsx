@@ -2,19 +2,25 @@ import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { TimerSecondsText } from '@/components/TimerSecondsText';
 import { useColors } from '@/hooks/useColors';
-import { useTimer } from '@/hooks/useTimer';
+import { useActiveTask, useActiveTaskId, useIsTimerPaused } from '@/store/selectors';
 
+/**
+ * Banner shown on dashboard whenever a timer is active.
+ *
+ * The MM:SS string is rendered by the inner <TimerSecondsText/> which is the
+ * only piece subscribed to per-second updates. Everything else here only
+ * re-renders when the active task or pause state actually changes.
+ */
 export function ActiveTimerBanner() {
   const colors = useColors();
   const router = useRouter();
-  const { activeTimer, task } = useTimer();
+  const activeTaskId = useActiveTaskId();
+  const isPaused = useIsTimerPaused();
+  const task = useActiveTask();
 
-  if (!activeTimer || !task) return null;
-
-  const mins = Math.floor(activeTimer.remainingSeconds / 60);
-  const secs = activeTimer.remainingSeconds % 60;
-  const timeStr = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+  if (!activeTaskId || !task) return null;
 
   return (
     <Pressable
@@ -22,18 +28,16 @@ export function ActiveTimerBanner() {
       onPress={() => router.push('/timer')}
     >
       <View style={styles.left}>
-        <View style={[styles.dot, { opacity: activeTimer.isPaused ? 0.4 : 1 }]} />
+        <View style={[styles.dot, { opacity: isPaused ? 0.4 : 1 }]} />
         <View>
-          <Text style={styles.label}>
-            {activeTimer.isPaused ? 'Paused' : 'Active Timer'}
-          </Text>
+          <Text style={styles.label}>{isPaused ? 'Paused' : 'Active Timer'}</Text>
           <Text style={styles.taskName} numberOfLines={1}>
             {task.title}
           </Text>
         </View>
       </View>
       <View style={styles.right}>
-        <Text style={styles.time}>{timeStr}</Text>
+        <TimerSecondsText style={styles.time} />
         <Feather name="chevron-right" size={16} color="rgba(255,255,255,0.6)" />
       </View>
     </Pressable>

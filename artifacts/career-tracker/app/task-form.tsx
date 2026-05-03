@@ -35,7 +35,9 @@ export default function TaskFormScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const params = useLocalSearchParams<{ id?: string; category?: string }>();
-  const { tasks, addTask, updateTask } = useAppStore();
+  const tasks = useAppStore((s) => s.tasks);
+  const addTask = useAppStore((s) => s.addTask);
+  const updateTask = useAppStore((s) => s.updateTask);
 
   const editingTask = params.id ? tasks.find((t) => t.id === params.id) : null;
 

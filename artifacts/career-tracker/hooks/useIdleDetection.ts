@@ -1,13 +1,14 @@
 import { useEffect, useRef } from 'react';
-import { useAppStore } from '@/store/useAppStore';
+import { useIsTimerIdle } from '@/store/selectors';
 import { AdService } from '@/services/AdService';
 
 const IDLE_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
 
 export function useIdleDetection() {
-  const activeTimer = useAppStore((s) => s.activeTimer);
+  // Subscribes to a boolean — host component does NOT re-render on every
+  // timer tick, only when idleness actually transitions.
+  const isIdle = useIsTimerIdle();
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const isIdle = !activeTimer || (!activeTimer.isRunning && !activeTimer.isPaused);
 
   useEffect(() => {
     if (idleTimerRef.current) {

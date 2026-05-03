@@ -13,13 +13,18 @@ interface Props {
   onEdit?: (task: Task) => void;
 }
 
-export function TaskCard({ task, onEdit }: Props) {
+function TaskCardImpl({ task, onEdit }: Props) {
   const colors = useColors();
   const router = useRouter();
-  const { startTimer, setTaskStatus, deleteTask, activeTimer } = useAppStore();
 
-  const isActive = activeTimer?.taskId === task.id;
-  const isTimerRunning = !!activeTimer;
+  // Granular subscriptions — actions are stable refs, booleans only flip on
+  // real transitions. Crucially, this card does NOT subscribe to the whole
+  // `activeTimer` object, so per-second timer ticks do not re-render it.
+  const startTimer = useAppStore((s) => s.startTimer);
+  const setTaskStatus = useAppStore((s) => s.setTaskStatus);
+  const deleteTask = useAppStore((s) => s.deleteTask);
+  const isActive = useAppStore((s) => s.activeTimer?.taskId === task.id);
+  const isTimerRunning = useAppStore((s) => s.activeTimer !== null);
 
   // Progress from saved state: how far through the task they got
   const totalSeconds = task.estimatedDuration * 60;
@@ -181,6 +186,15 @@ export function TaskCard({ task, onEdit }: Props) {
     </View>
   );
 }
+
+/**
+ * Memoized: only re-renders when the `task` reference changes (Zustand
+ * immutable updates ensure stable refs unless THIS task was mutated).
+ *
+ * The custom comparator intentionally ignores `onEdit` identity so parent
+ * components can pass inline arrow functions without invalidating the memo.
+ */
+export const TaskCard = React.memo(TaskCardImpl, (prev, next) => prev.task === next.task);
 
 const styles = StyleSheet.create({
   card: {

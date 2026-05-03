@@ -3,7 +3,8 @@ import React, { useMemo } from 'react';
 import { Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors } from '@/hooks/useColors';
-import { useAppStore } from '@/store/useAppStore';
+import { computeStreak, computeWeeklyData } from '@/lib/computations';
+import { useDayRecords, useTasks } from '@/store/selectors';
 import type { TaskCategory } from '@/types';
 
 const CATEGORY_COLORS: Record<TaskCategory, string> = {
@@ -31,13 +32,23 @@ function shortDay(dateStr: string): string {
 export default function HistoryScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { tasks, dayRecords, getStreak, getWeeklyData } = useAppStore();
+  const tasks = useTasks();
+  const dayRecords = useDayRecords();
 
-  const streak = getStreak();
-  const weeklyData = getWeeklyData();
-  const maxMinutes = Math.max(...weeklyData.map((d) => d.minutes), 30);
-  const totalMinutesAllTime = Object.values(dayRecords).reduce((s, r) => s + r.totalMinutes, 0);
-  const totalTasksDone = tasks.filter((t) => t.status === 'completed').length;
+  const streak = useMemo(() => computeStreak(dayRecords), [dayRecords]);
+  const weeklyData = useMemo(() => computeWeeklyData(dayRecords), [dayRecords]);
+  const maxMinutes = useMemo(
+    () => Math.max(...weeklyData.map((d) => d.minutes), 30),
+    [weeklyData]
+  );
+  const totalMinutesAllTime = useMemo(
+    () => Object.values(dayRecords).reduce((s, r) => s + r.totalMinutes, 0),
+    [dayRecords]
+  );
+  const totalTasksDone = useMemo(
+    () => tasks.filter((t) => t.status === 'completed').length,
+    [tasks]
+  );
 
   // Category breakdown
   const categoryBreakdown = useMemo(() => {
@@ -53,10 +64,14 @@ export default function HistoryScreen() {
   }, [tasks]);
 
   // Recent day records
-  const recentDays = Object.values(dayRecords)
-    .filter((r) => r.completedTaskIds.length > 0)
-    .sort((a, b) => b.date.localeCompare(a.date))
-    .slice(0, 14);
+  const recentDays = useMemo(
+    () =>
+      Object.values(dayRecords)
+        .filter((r) => r.completedTaskIds.length > 0)
+        .sort((a, b) => b.date.localeCompare(a.date))
+        .slice(0, 14),
+    [dayRecords]
+  );
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>

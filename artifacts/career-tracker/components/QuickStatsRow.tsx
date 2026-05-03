@@ -17,7 +17,11 @@ function formatTime(minutes: number): string {
   return `${minutes}m`;
 }
 
-export function QuickStatsRow({ completedCount, totalMinutes, streak }: Props) {
+export const QuickStatsRow = React.memo(function QuickStatsRow({
+  completedCount,
+  totalMinutes,
+  streak,
+}: Props) {
   return (
     <View style={styles.row}>
       <StatsCard label="Done today" value={completedCount} />
@@ -25,7 +29,7 @@ export function QuickStatsRow({ completedCount, totalMinutes, streak }: Props) {
       <StatsCard label="Day streak" value={streak} accent />
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', gap: 10, marginBottom: 16 },

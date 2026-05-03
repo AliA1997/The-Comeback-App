@@ -2,13 +2,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import type { ActiveTimer, DayRecord, Task, TaskStatus } from '@/types';
+import { todayStr } from '@/lib/dateUtils';
 
 function generateId(): string {
   return Date.now().toString() + Math.random().toString(36).substr(2, 9);
-}
-
-function todayStr(): string {
-  return new Date().toISOString().split('T')[0];
 }
 
 interface AppState {
@@ -40,11 +37,6 @@ interface AppState {
 
   // History
   recordTaskCompletion: (taskId: string, actualMinutes: number) => void;
-
-  // Computed helpers
-  getStreak: () => number;
-  getTodayStats: () => { completedCount: number; totalMinutes: number; pendingCount: number };
-  getWeeklyData: () => { date: string; minutes: number; count: number }[];
 }
 
 export const useAppStore = create<AppState>()(
@@ -239,50 +231,6 @@ export const useAppStore = create<AppState>()(
         });
       },
 
-      getStreak: () => {
-        const { dayRecords } = get();
-        let streak = 0;
-        for (let i = 0; i < 365; i++) {
-          const d = new Date();
-          d.setDate(d.getDate() - i);
-          const dateStr = d.toISOString().split('T')[0];
-          const record = dayRecords[dateStr];
-          if (record && record.completedTaskIds.length > 0) {
-            streak++;
-          } else if (i > 0) {
-            break;
-          }
-        }
-        return streak;
-      },
-
-      getTodayStats: () => {
-        const { tasks, dayRecords } = get();
-        const today = todayStr();
-        const record = dayRecords[today];
-        return {
-          completedCount: record?.completedTaskIds.length ?? 0,
-          totalMinutes: record?.totalMinutes ?? 0,
-          pendingCount: tasks.filter((t) => t.date === today && t.status === 'pending').length,
-        };
-      },
-
-      getWeeklyData: () => {
-        const { dayRecords } = get();
-        const data: { date: string; minutes: number; count: number }[] = [];
-        for (let i = 6; i >= 0; i--) {
-          const d = new Date();
-          d.setDate(d.getDate() - i);
-          const dateStr = d.toISOString().split('T')[0];
-          const record = dayRecords[dateStr];
-          data.push({
-            date: dateStr,
-            minutes: record?.totalMinutes ?? 0,
-            count: record?.completedTaskIds.length ?? 0,
-          });
-        }
-        return data;
-      },
     }),
     {
       name: 'career-tracker-store',
