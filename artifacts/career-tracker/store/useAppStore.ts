@@ -118,10 +118,14 @@ export const useAppStore = create<AppState>()(
 
       startTimer: (taskId, durationMinutes) => {
         const totalSeconds = durationMinutes * 60;
+        // Resume from saved progress if available
+        const savedRemaining = get().tasks.find((t) => t.id === taskId)?.savedRemainingSeconds;
+        const remainingSeconds =
+          savedRemaining !== undefined && savedRemaining > 0 ? savedRemaining : totalSeconds;
         set({
           activeTimer: {
             taskId,
-            remainingSeconds: totalSeconds,
+            remainingSeconds,
             totalSeconds,
             isRunning: true,
             isPaused: false,
@@ -166,6 +170,14 @@ export const useAppStore = create<AppState>()(
       stopTimer: () => {
         const { activeTimer, setTaskStatus } = get();
         if (activeTimer) {
+          // Persist remaining seconds on the task so it can resume later
+          set((state) => ({
+            tasks: state.tasks.map((t) =>
+              t.id === activeTimer.taskId
+                ? { ...t, savedRemainingSeconds: activeTimer.remainingSeconds }
+                : t
+            ),
+          }));
           setTaskStatus(activeTimer.taskId, 'pending');
         }
         set({ activeTimer: null });
@@ -187,6 +199,14 @@ export const useAppStore = create<AppState>()(
         if (!activeTimer) return;
         const elapsed = activeTimer.totalSeconds - activeTimer.remainingSeconds;
         const actualMinutes = Math.max(1, Math.round(elapsed / 60));
+        // Clear saved progress — task is done
+        set((state) => ({
+          tasks: state.tasks.map((t) =>
+            t.id === activeTimer.taskId
+              ? { ...t, savedRemainingSeconds: undefined }
+              : t
+          ),
+        }));
         setTaskStatus(activeTimer.taskId, 'completed');
         recordTaskCompletion(activeTimer.taskId, actualMinutes);
         set({ activeTimer: null });

@@ -21,6 +21,18 @@ export function TaskCard({ task, onEdit }: Props) {
   const isActive = activeTimer?.taskId === task.id;
   const isTimerRunning = !!activeTimer;
 
+  // Progress from saved state: how far through the task they got
+  const totalSeconds = task.estimatedDuration * 60;
+  const savedRemaining = task.savedRemainingSeconds;
+  const hasProgress =
+    savedRemaining !== undefined &&
+    savedRemaining > 0 &&
+    savedRemaining < totalSeconds &&
+    task.status !== 'completed' &&
+    task.status !== 'skipped';
+  const progressFraction = hasProgress ? 1 - savedRemaining / totalSeconds : 0;
+  const savedMinsLeft = hasProgress ? Math.ceil(savedRemaining / 60) : 0;
+
   const handleStart = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     startTimer(task.id, task.estimatedDuration);
@@ -65,6 +77,7 @@ export function TaskCard({ task, onEdit }: Props) {
             {task.estimatedDuration}m
           </Text>
         </View>
+
         <Text
           style={[
             styles.title,
@@ -77,10 +90,31 @@ export function TaskCard({ task, onEdit }: Props) {
         >
           {task.title}
         </Text>
+
         {task.description ? (
           <Text style={[styles.description, { color: colors.mutedForeground }]} numberOfLines={2}>
             {task.description}
           </Text>
+        ) : null}
+
+        {/* Progress bar — shown when task was stopped mid-way */}
+        {hasProgress && !isActive ? (
+          <View style={styles.progressWrap}>
+            <View style={[styles.progressTrack, { backgroundColor: colors.border }]}>
+              <View
+                style={[
+                  styles.progressFill,
+                  {
+                    backgroundColor: colors.primary,
+                    width: `${Math.round(progressFraction * 100)}%` as any,
+                  },
+                ]}
+              />
+            </View>
+            <Text style={[styles.progressLabel, { color: colors.primary }]}>
+              {savedMinsLeft}m left · resume
+            </Text>
+          </View>
         ) : null}
 
         {task.status === 'pending' || task.status === 'in_progress' ? (
@@ -89,15 +123,25 @@ export function TaskCard({ task, onEdit }: Props) {
               style={[
                 styles.startBtn,
                 {
-                  backgroundColor: isActive ? colors.accent : colors.primary,
+                  backgroundColor: isActive
+                    ? colors.accent
+                    : hasProgress
+                    ? colors.primary
+                    : colors.primary,
                   opacity: isTimerRunning && !isActive ? 0.4 : 1,
                 },
               ]}
               onPress={handleStart}
               disabled={isTimerRunning && !isActive}
             >
-              <Feather name={isActive ? 'clock' : 'play'} size={14} color="#fff" />
-              <Text style={styles.startText}>{isActive ? 'Active' : 'Start'}</Text>
+              <Feather
+                name={isActive ? 'clock' : hasProgress ? 'rotate-ccw' : 'play'}
+                size={14}
+                color="#fff"
+              />
+              <Text style={styles.startText}>
+                {isActive ? 'Active' : hasProgress ? 'Resume' : 'Start'}
+              </Text>
             </Pressable>
 
             <TouchableOpacity
@@ -144,32 +188,30 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     marginBottom: 12,
   },
-  statusBar: {
-    width: 4,
-  },
-  content: {
-    flex: 1,
-    padding: 16,
-    gap: 8,
-  },
+  statusBar: { width: 4 },
+  content: { flex: 1, padding: 16, gap: 8 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  duration: {
-    fontSize: 12,
-    fontFamily: 'Inter_500Medium',
+  duration: { fontSize: 12, fontFamily: 'Inter_500Medium' },
+  title: { fontSize: 16, fontFamily: 'Inter_600SemiBold', lineHeight: 22 },
+  description: { fontSize: 13, fontFamily: 'Inter_400Regular', lineHeight: 18 },
+  progressWrap: { gap: 5 },
+  progressTrack: {
+    height: 4,
+    borderRadius: 2,
+    overflow: 'hidden',
   },
-  title: {
-    fontSize: 16,
+  progressFill: {
+    height: 4,
+    borderRadius: 2,
+  },
+  progressLabel: {
+    fontSize: 11,
     fontFamily: 'Inter_600SemiBold',
-    lineHeight: 22,
-  },
-  description: {
-    fontSize: 13,
-    fontFamily: 'Inter_400Regular',
-    lineHeight: 18,
+    letterSpacing: 0.2,
   },
   actions: {
     flexDirection: 'row',
@@ -185,11 +227,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     gap: 6,
   },
-  startText: {
-    color: '#fff',
-    fontSize: 13,
-    fontFamily: 'Inter_600SemiBold',
-  },
+  startText: { color: '#fff', fontSize: 13, fontFamily: 'Inter_600SemiBold' },
   iconBtn: {
     width: 34,
     height: 34,
@@ -204,9 +242,5 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginTop: 4,
   },
-  statusLabel: {
-    fontSize: 12,
-    fontFamily: 'Inter_600SemiBold',
-    letterSpacing: 0.3,
-  },
+  statusLabel: { fontSize: 12, fontFamily: 'Inter_600SemiBold', letterSpacing: 0.3 },
 });

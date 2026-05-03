@@ -19,6 +19,7 @@ export interface Task {
   completedAt?: number;
   actualDuration?: number; // minutes actually spent
   date: string; // YYYY-MM-DD
+  savedRemainingSeconds?: number; // persisted countdown — resumes here on restart
 }
 
 export interface DayRecord {
