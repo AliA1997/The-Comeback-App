@@ -130,7 +130,9 @@ export default function DashboardScreen() {
         {/* In Progress */}
         {inProgressToday.filter((t) => t.id !== nextBest?.id).length > 0 ? (
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>In Progress</Text>
+            <Text style={[styles.sectionTitle, styles.sectionTitleSpaced, { color: colors.foreground }]}>
+              In Progress
+            </Text>
             {inProgressToday
               .filter((t) => t.id !== nextBest?.id)
               .map((task) => (
@@ -175,7 +177,9 @@ export default function DashboardScreen() {
         {/* Completed today */}
         {completedToday.length > 0 ? (
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Completed today</Text>
+            <Text style={[styles.sectionTitle, styles.sectionTitleSpaced, { color: colors.foreground }]}>
+              Completed today
+            </Text>
             {completedToday.slice(0, 3).map((task) => (
               <TaskCard key={task.id} task={task} />
             ))}
@@ -247,6 +251,8 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontFamily: 'Inter_700Bold',
     letterSpacing: -0.3,
+  },
+  sectionTitleSpaced: {
     marginBottom: 12,
   },
   recBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },

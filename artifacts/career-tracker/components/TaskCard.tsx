@@ -35,6 +35,11 @@ export function TaskCard({ task, onEdit }: Props) {
 
   const handleStart = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (isActive) {
+      // Timer is already running — just open the timer screen, do NOT restart
+      router.push('/timer');
+      return;
+    }
     startTimer(task.id, task.estimatedDuration);
     router.push('/timer');
   };
@@ -123,11 +128,7 @@ export function TaskCard({ task, onEdit }: Props) {
               style={[
                 styles.startBtn,
                 {
-                  backgroundColor: isActive
-                    ? colors.accent
-                    : hasProgress
-                    ? colors.primary
-                    : colors.primary,
+                  backgroundColor: isActive ? colors.accent : colors.primary,
                   opacity: isTimerRunning && !isActive ? 0.4 : 1,
                 },
               ]}
