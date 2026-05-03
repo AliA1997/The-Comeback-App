@@ -1,4 +1,5 @@
 import { Feather } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import React, { useMemo } from 'react';
 import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -50,6 +51,7 @@ export default function InsightsScreen() {
   }, [completedThisWeek]);
 
   const handleAddTask = (category: TaskCategory) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     router.push({ pathname: '/task-form', params: { category } });
   };
 
@@ -61,54 +63,50 @@ export default function InsightsScreen() {
           styles.content,
           {
             paddingTop: Platform.OS === 'web' ? insets.top + 67 : insets.top + 16,
-            paddingBottom: 120,
+            paddingBottom: 120 + (Platform.OS === 'web' ? 34 : 0),
           },
         ]}
         showsVerticalScrollIndicator={false}
       >
         {/* Header */}
-        <View style={styles.header}>
-          <Feather name="zap" size={24} color={colors.primary} />
-          <View style={styles.headerText}>
-            <Text style={[styles.title, { color: colors.foreground }]}>Career Guidance</Text>
-            <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-              Rule-based insights from your activity
-            </Text>
-          </View>
-        </View>
+        <Text style={[styles.title, { color: colors.foreground }]}>Career Guidance</Text>
+        <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
+          Rule-based insights from your activity
+        </Text>
 
         {/* Next Best Task */}
         {nextBest ? (
           <View style={[styles.nextBestCard, { backgroundColor: colors.primary }]}>
-            <View style={styles.nextBestHeader}>
-              <Feather name="target" size={16} color="rgba(255,255,255,0.8)" />
-              <Text style={styles.nextBestLabel}>Next Best Task</Text>
+            <View style={styles.nextBestTop}>
+              <Feather name="target" size={14} color="rgba(255,255,255,0.7)" />
+              <Text style={styles.nextBestTopLabel}>Next Best Task</Text>
             </View>
-            <Text style={styles.nextBestTitle} numberOfLines={2}>
-              {nextBest.title}
-            </Text>
+            <Text style={styles.nextBestTitle} numberOfLines={2}>{nextBest.title}</Text>
             <View style={styles.nextBestMeta}>
-              <Text style={styles.nextBestCategory}>{nextBest.category}</Text>
-              <Text style={styles.nextBestDot}>·</Text>
-              <Text style={styles.nextBestDuration}>{nextBest.estimatedDuration}m</Text>
+              <Text style={styles.nextBestMuted}>{nextBest.category}</Text>
+              <Text style={styles.nextBestMuted}>·</Text>
+              <Text style={styles.nextBestMuted}>{nextBest.estimatedDuration}m</Text>
             </View>
             <TouchableOpacity
-              style={styles.nextBestBtn}
-              onPress={() => router.push('/timer')}
+              style={styles.startBtn}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                router.push('/timer');
+              }}
             >
               <Feather name="play" size={14} color={colors.primary} />
-              <Text style={[styles.nextBestBtnText, { color: colors.primary }]}>Start Now</Text>
+              <Text style={[styles.startBtnText, { color: colors.primary }]}>Start Now</Text>
             </TouchableOpacity>
           </View>
         ) : null}
 
-        {/* This Week Activity */}
-        <View style={[styles.weekCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>This Week</Text>
+        {/* This Week */}
+        <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Text style={[styles.cardTitle, { color: colors.foreground }]}>This Week</Text>
           {completedThisWeek.length > 0 ? (
             <>
               <Text style={[styles.weekSummary, { color: colors.mutedForeground }]}>
-                {completedThisWeek.length} tasks completed across {categoryStats.length} categories
+                {completedThisWeek.length} tasks · {categoryStats.length} categories
               </Text>
               {categoryStats.map(([cat, count]) => (
                 <View key={cat} style={styles.catRow}>
@@ -118,48 +116,55 @@ export default function InsightsScreen() {
                       {CATEGORY_DESCRIPTIONS[cat]}
                     </Text>
                   </View>
-                  <View style={[styles.catCount, { backgroundColor: `${colors.primary}22` }]}>
-                    <Text style={[styles.catCountText, { color: colors.primary }]}>{count}</Text>
+                  <View style={[styles.catBadge, { backgroundColor: `${colors.primary}22` }]}>
+                    <Text style={[styles.catCount, { color: colors.primary }]}>{count}</Text>
                   </View>
                 </View>
               ))}
             </>
           ) : (
             <View style={styles.weekEmpty}>
-              <Feather name="calendar" size={28} color={colors.border} />
+              <Feather name="calendar" size={24} color={colors.border} />
               <Text style={[styles.weekEmptyText, { color: colors.mutedForeground }]}>
-                No completed tasks yet this week. Start one to get insights.
+                Complete tasks to unlock insights
               </Text>
             </View>
           )}
         </View>
 
         {/* Insights */}
-        <Text style={[styles.sectionTitle, { color: colors.foreground, marginBottom: 12 }]}>
+        <Text style={[styles.insightsHeader, { color: colors.foreground }]}>
           Insights · {suggestions.length}
         </Text>
 
         {suggestions.length > 0 ? (
-          suggestions.map((suggestion) => (
+          suggestions.map((s) => (
             <SuggestionCard
-              key={suggestion.id}
-              suggestion={suggestion}
-              onAction={
-                suggestion.category
-                  ? () => handleAddTask(suggestion.category!)
-                  : undefined
-              }
+              key={s.id}
+              suggestion={s}
+              onAction={s.category ? () => handleAddTask(s.category!) : undefined}
             />
           ))
         ) : (
           <View style={[styles.allGoodCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Feather name="check-circle" size={32} color={colors.accent} />
-            <Text style={[styles.allGoodTitle, { color: colors.foreground }]}>You're on track</Text>
+            <Text style={[styles.allGoodTitle, { color: colors.foreground }]}>
+              You're on track
+            </Text>
             <Text style={[styles.allGoodText, { color: colors.mutedForeground }]}>
-              Keep up the balanced activity across all categories. Check back after a few more days of work.
+              Keep balanced activity across categories. Check back after more sessions.
             </Text>
           </View>
         )}
+
+        {/* Privacy Policy link */}
+        <TouchableOpacity
+          style={styles.privacyLink}
+          onPress={() => router.push('/privacy')}
+        >
+          <Feather name="shield" size={13} color={colors.mutedForeground} />
+          <Text style={[styles.privacyText, { color: colors.mutedForeground }]}>Privacy Policy</Text>
+        </TouchableOpacity>
       </ScrollView>
     </View>
   );
@@ -168,25 +173,19 @@ export default function InsightsScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   scroll: { flex: 1 },
-  content: { paddingHorizontal: 20 },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 24 },
-  headerText: { flex: 1 },
+  content: { paddingHorizontal: 20, gap: 0 },
   title: { fontSize: 26, fontFamily: 'Inter_700Bold', letterSpacing: -0.5 },
-  subtitle: { fontSize: 13, fontFamily: 'Inter_400Regular', marginTop: 2 },
-  nextBestCard: {
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 20,
-    gap: 8,
+  subtitle: { fontSize: 13, fontFamily: 'Inter_400Regular', marginTop: 2, marginBottom: 20 },
+  nextBestCard: { borderRadius: 20, padding: 20, marginBottom: 16, gap: 8 },
+  nextBestTop: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  nextBestTopLabel: {
+    fontSize: 11, fontFamily: 'Inter_600SemiBold', color: 'rgba(255,255,255,0.7)',
+    textTransform: 'uppercase', letterSpacing: 0.5,
   },
-  nextBestHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  nextBestLabel: { fontSize: 12, fontFamily: 'Inter_600SemiBold', color: 'rgba(255,255,255,0.8)', textTransform: 'uppercase', letterSpacing: 0.5 },
   nextBestTitle: { fontSize: 20, fontFamily: 'Inter_700Bold', color: '#fff', lineHeight: 26 },
   nextBestMeta: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  nextBestCategory: { fontSize: 13, fontFamily: 'Inter_500Medium', color: 'rgba(255,255,255,0.7)' },
-  nextBestDot: { color: 'rgba(255,255,255,0.4)' },
-  nextBestDuration: { fontSize: 13, fontFamily: 'Inter_500Medium', color: 'rgba(255,255,255,0.7)' },
-  nextBestBtn: {
+  nextBestMuted: { fontSize: 13, fontFamily: 'Inter_500Medium', color: 'rgba(255,255,255,0.6)' },
+  startBtn: {
     alignSelf: 'flex-start',
     backgroundColor: '#fff',
     borderRadius: 20,
@@ -197,35 +196,28 @@ const styles = StyleSheet.create({
     gap: 6,
     marginTop: 4,
   },
-  nextBestBtnText: { fontSize: 14, fontFamily: 'Inter_700Bold' },
-  weekCard: {
-    borderRadius: 16,
-    padding: 18,
-    borderWidth: 1,
-    marginBottom: 24,
-    gap: 12,
-  },
-  sectionTitle: { fontSize: 17, fontFamily: 'Inter_700Bold' },
+  startBtnText: { fontSize: 14, fontFamily: 'Inter_700Bold' },
+  card: { borderRadius: 16, padding: 18, borderWidth: 1, marginBottom: 20, gap: 12 },
+  cardTitle: { fontSize: 17, fontFamily: 'Inter_700Bold' },
   weekSummary: { fontSize: 13, fontFamily: 'Inter_400Regular', marginTop: -4 },
-  catRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 4,
-  },
+  catRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   catName: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },
   catDesc: { fontSize: 12, fontFamily: 'Inter_400Regular', marginTop: 1 },
-  catCount: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20 },
-  catCountText: { fontSize: 14, fontFamily: 'Inter_700Bold' },
-  weekEmpty: { alignItems: 'center', gap: 8, paddingVertical: 8 },
-  weekEmptyText: { fontSize: 13, fontFamily: 'Inter_400Regular', textAlign: 'center', lineHeight: 18 },
-  allGoodCard: {
-    borderRadius: 16,
-    padding: 24,
-    borderWidth: 1,
-    alignItems: 'center',
-    gap: 10,
-  },
+  catBadge: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20 },
+  catCount: { fontSize: 14, fontFamily: 'Inter_700Bold' },
+  weekEmpty: { alignItems: 'center', gap: 6, paddingVertical: 4 },
+  weekEmptyText: { fontSize: 13, fontFamily: 'Inter_400Regular', textAlign: 'center' },
+  insightsHeader: { fontSize: 17, fontFamily: 'Inter_700Bold', marginBottom: 12 },
+  allGoodCard: { borderRadius: 16, padding: 24, borderWidth: 1, alignItems: 'center', gap: 10 },
   allGoodTitle: { fontSize: 18, fontFamily: 'Inter_700Bold' },
   allGoodText: { fontSize: 14, fontFamily: 'Inter_400Regular', textAlign: 'center', lineHeight: 20, maxWidth: 280 },
+  privacyLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    justifyContent: 'center',
+    marginTop: 24,
+    paddingVertical: 8,
+  },
+  privacyText: { fontSize: 13, fontFamily: 'Inter_400Regular' },
 });

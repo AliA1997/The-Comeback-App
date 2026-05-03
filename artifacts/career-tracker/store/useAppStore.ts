@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import type { ActiveTimer, DayRecord, Task, TaskCategory, TaskStatus } from '@/types';
+import type { ActiveTimer, DayRecord, Task, TaskStatus } from '@/types';
 
 function generateId(): string {
   return Date.now().toString() + Math.random().toString(36).substr(2, 9);
@@ -12,6 +12,14 @@ function todayStr(): string {
 }
 
 interface AppState {
+  // Hydration flag — true once AsyncStorage has been read on startup
+  _hasHydrated: boolean;
+  setHasHydrated: (v: boolean) => void;
+
+  // Onboarding
+  hasSeenLanding: boolean;
+  setHasSeenLanding: () => void;
+
   tasks: Task[];
   dayRecords: Record<string, DayRecord>;
   activeTimer: ActiveTimer | null;
@@ -42,6 +50,12 @@ interface AppState {
 export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
+      _hasHydrated: false,
+      setHasHydrated: (v) => set({ _hasHydrated: v }),
+
+      hasSeenLanding: false,
+      setHasSeenLanding: () => set({ hasSeenLanding: true }),
+
       tasks: [],
       dayRecords: {},
       activeTimer: null,
@@ -72,17 +86,35 @@ export const useAppStore = create<AppState>()(
         })),
 
       setTaskStatus: (id, status) =>
-        set((state) => ({
-          tasks: state.tasks.map((t) =>
-            t.id === id
+        set((state) => {
+          const today = todayStr();
+          const existing = state.dayRecords[today] ?? {
+            date: today,
+            totalMinutes: 0,
+            completedTaskIds: [],
+            skippedTaskIds: [],
+          };
+          const newDayRecords =
+            status === 'skipped'
               ? {
-                  ...t,
-                  status,
-                  completedAt: status === 'completed' ? Date.now() : t.completedAt,
+                  ...state.dayRecords,
+                  [today]: {
+                    ...existing,
+                    skippedTaskIds: existing.skippedTaskIds.includes(id)
+                      ? existing.skippedTaskIds
+                      : [...existing.skippedTaskIds, id],
+                  },
                 }
-              : t
-          ),
-        })),
+              : state.dayRecords;
+          return {
+            tasks: state.tasks.map((t) =>
+              t.id === id
+                ? { ...t, status, completedAt: status === 'completed' ? Date.now() : t.completedAt }
+                : t
+            ),
+            dayRecords: newDayRecords,
+          };
+        }),
 
       startTimer: (taskId, durationMinutes) => {
         const totalSeconds = durationMinutes * 60;
@@ -235,6 +267,9 @@ export const useAppStore = create<AppState>()(
     {
       name: 'career-tracker-store',
       storage: createJSONStorage(() => AsyncStorage),
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true);
+      },
     }
   )
 );

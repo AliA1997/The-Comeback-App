@@ -14,6 +14,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CategoryBadge } from '@/components/CategoryBadge';
 import { TimerDisplay } from '@/components/TimerDisplay';
+import { EmptyState } from '@/components/EmptyState';
 import { useColors } from '@/hooks/useColors';
 import { useTimer } from '@/hooks/useTimer';
 import { useAppStore } from '@/store/useAppStore';
@@ -22,6 +23,8 @@ export default function TimerScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+
+  // useTimer is now read-only — interval is in TimerProvider
   const { activeTimer, task } = useTimer();
   const { pauseTimer, resumeTimer, stopTimer, completeTimer } = useAppStore();
 
@@ -41,21 +44,17 @@ export default function TimerScreen() {
       router.back();
       return;
     }
-    Alert.alert(
-      'Stop Timer',
-      'Are you sure? Your progress on this task will not be logged.',
-      [
-        { text: 'Keep Going', style: 'cancel' },
-        {
-          text: 'Stop',
-          style: 'destructive',
-          onPress: () => {
-            stopTimer();
-            router.back();
-          },
+    Alert.alert('Stop Timer', 'Progress on this task will not be logged.', [
+      { text: 'Keep Going', style: 'cancel' },
+      {
+        text: 'Stop',
+        style: 'destructive',
+        onPress: () => {
+          stopTimer();
+          router.back();
         },
-      ]
-    );
+      },
+    ]);
   };
 
   const handleComplete = () => {
@@ -67,43 +66,46 @@ export default function TimerScreen() {
   if (!activeTimer || !task) {
     return (
       <View style={[styles.root, { backgroundColor: colors.background }]}>
-        <View style={[styles.empty, { paddingTop: insets.top + 60 }]}>
-          <Feather name="clock" size={48} color={colors.border} />
-          <Text style={[styles.emptyTitle, { color: colors.foreground }]}>No active timer</Text>
-          <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
-            Start a task from the dashboard or tasks screen.
-          </Text>
-          <TouchableOpacity
-            style={[styles.backBtn, { borderColor: colors.border }]}
-            onPress={() => router.back()}
-          >
-            <Feather name="arrow-left" size={16} color={colors.foreground} />
-            <Text style={[styles.backBtnText, { color: colors.foreground }]}>Go Back</Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+          style={[styles.closeBtn, { top: insets.top + 16, borderColor: colors.border }]}
+          onPress={() => router.back()}
+        >
+          <Feather name="x" size={20} color={colors.foreground} />
+        </TouchableOpacity>
+        <EmptyState
+          icon="clock"
+          title="No active timer"
+          message="Start a task from the dashboard or tasks screen to begin a focus session."
+        />
       </View>
     );
   }
 
-  const progress = activeTimer.totalSeconds > 0
-    ? activeTimer.remainingSeconds / activeTimer.totalSeconds
-    : 0;
-  const isLow = progress < 0.2;
+  const elapsedSeconds = activeTimer.totalSeconds - activeTimer.remainingSeconds;
+  const elapsedMinutes = Math.round(elapsedSeconds / 60);
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
-      {/* Back button */}
+      {/* Close button */}
       <TouchableOpacity
         style={[
           styles.closeBtn,
-          { top: insets.top + (Platform.OS === 'web' ? 67 : 16), borderColor: colors.border },
+          {
+            top: insets.top + (Platform.OS === 'web' ? 67 : 16),
+            borderColor: colors.border,
+          },
         ]}
         onPress={() => router.back()}
       >
         <Feather name="chevron-down" size={22} color={colors.foreground} />
       </TouchableOpacity>
 
-      <View style={[styles.inner, { paddingBottom: insets.bottom + (Platform.OS === 'web' ? 34 : 0) }]}>
+      <View
+        style={[
+          styles.inner,
+          { paddingBottom: insets.bottom + (Platform.OS === 'web' ? 34 : 16) },
+        ]}
+      >
         {/* Task info */}
         <View style={styles.taskInfo}>
           <CategoryBadge category={task.category} />
@@ -111,13 +113,13 @@ export default function TimerScreen() {
             {task.title}
           </Text>
           {task.description ? (
-            <Text style={[styles.taskDesc, { color: colors.mutedForeground }]} numberOfLines={3}>
+            <Text style={[styles.taskDesc, { color: colors.mutedForeground }]} numberOfLines={2}>
               {task.description}
             </Text>
           ) : null}
         </View>
 
-        {/* Timer */}
+        {/* Timer ring */}
         <View style={styles.timerWrap}>
           <TimerDisplay
             remainingSeconds={activeTimer.remainingSeconds}
@@ -132,38 +134,59 @@ export default function TimerScreen() {
           ) : null}
         </View>
 
-        {/* Controls */}
+        {/* Controls row */}
         <View style={styles.controls}>
+          {/* Stop */}
           <TouchableOpacity
-            style={[styles.stopBtn, { borderColor: colors.destructive }]}
+            style={[styles.secondaryBtn, { borderColor: colors.destructive }]}
             onPress={handleStop}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
           >
-            <Feather name="square" size={20} color={colors.destructive} />
+            <Feather name="square" size={22} color={colors.destructive} />
           </TouchableOpacity>
 
+          {/* Pause / Resume */}
           <Pressable
-            style={[styles.mainBtn, { backgroundColor: activeTimer.isPaused ? colors.accent : colors.primary }]}
+            style={[
+              styles.mainBtn,
+              { backgroundColor: activeTimer.isPaused ? colors.accent : colors.primary },
+            ]}
             onPress={handlePauseResume}
           >
-            <Feather
-              name={activeTimer.isPaused ? 'play' : 'pause'}
-              size={28}
-              color="#fff"
-            />
+            <Feather name={activeTimer.isPaused ? 'play' : 'pause'} size={30} color="#fff" />
           </Pressable>
 
+          {/* Done */}
           <TouchableOpacity
-            style={[styles.doneBtn, { borderColor: colors.accent }]}
+            style={[styles.secondaryBtn, { borderColor: colors.accent }]}
             onPress={handleComplete}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
           >
-            <Feather name="check" size={20} color={colors.accent} />
+            <Feather name="check" size={22} color={colors.accent} />
           </TouchableOpacity>
         </View>
 
-        {/* Estimated total */}
-        <Text style={[styles.estNote, { color: colors.mutedForeground }]}>
-          Estimated: {task.estimatedDuration}m · {Math.round((activeTimer.totalSeconds - activeTimer.remainingSeconds) / 60)}m elapsed
-        </Text>
+        {/* Meta info */}
+        <View style={[styles.metaRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={styles.metaItem}>
+            <Text style={[styles.metaValue, { color: colors.foreground }]}>
+              {task.estimatedDuration}m
+            </Text>
+            <Text style={[styles.metaLabel, { color: colors.mutedForeground }]}>Estimated</Text>
+          </View>
+          <View style={[styles.metaDivider, { backgroundColor: colors.border }]} />
+          <View style={styles.metaItem}>
+            <Text style={[styles.metaValue, { color: colors.foreground }]}>{elapsedMinutes}m</Text>
+            <Text style={[styles.metaLabel, { color: colors.mutedForeground }]}>Elapsed</Text>
+          </View>
+          <View style={[styles.metaDivider, { backgroundColor: colors.border }]} />
+          <View style={styles.metaItem}>
+            <Text style={[styles.metaValue, { color: colors.foreground }]}>
+              {Math.round(activeTimer.remainingSeconds / 60)}m
+            </Text>
+            <Text style={[styles.metaLabel, { color: colors.mutedForeground }]}>Remaining</Text>
+          </View>
+        </View>
       </View>
     </View>
   );
@@ -188,7 +211,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-evenly',
     paddingHorizontal: 32,
   },
-  taskInfo: { alignItems: 'center', gap: 10 },
+  taskInfo: { alignItems: 'center', gap: 10, paddingTop: 40 },
   taskTitle: {
     fontSize: 22,
     fontFamily: 'Inter_700Bold',
@@ -196,12 +219,7 @@ const styles = StyleSheet.create({
     lineHeight: 28,
     letterSpacing: -0.3,
   },
-  taskDesc: {
-    fontSize: 14,
-    fontFamily: 'Inter_400Regular',
-    textAlign: 'center',
-    lineHeight: 20,
-  },
+  taskDesc: { fontSize: 14, fontFamily: 'Inter_400Regular', textAlign: 'center', lineHeight: 20 },
   timerWrap: { alignItems: 'center', gap: 16 },
   pausedBadge: {
     flexDirection: 'row',
@@ -212,48 +230,36 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   pausedText: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
-  controls: { flexDirection: 'row', alignItems: 'center', gap: 24 },
-  stopBtn: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+  controls: { flexDirection: 'row', alignItems: 'center', gap: 28 },
+  secondaryBtn: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
   },
   mainBtn: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 88,
+    height: 88,
+    borderRadius: 44,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.35,
     shadowRadius: 16,
-    elevation: 8,
+    elevation: 10,
   },
-  doneBtn: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    borderWidth: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  estNote: { fontSize: 12, fontFamily: 'Inter_400Regular', letterSpacing: 0.2 },
-  empty: { flex: 1, alignItems: 'center', paddingHorizontal: 32, gap: 12 },
-  emptyTitle: { fontSize: 20, fontFamily: 'Inter_700Bold' },
-  emptyText: { fontSize: 14, fontFamily: 'Inter_400Regular', textAlign: 'center', lineHeight: 20 },
-  backBtn: {
+  metaRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+    borderRadius: 16,
     borderWidth: 1,
-    borderRadius: 24,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    marginTop: 8,
+    overflow: 'hidden',
+    width: '100%',
   },
-  backBtnText: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },
+  metaItem: { flex: 1, alignItems: 'center', paddingVertical: 14, gap: 3 },
+  metaValue: { fontSize: 18, fontFamily: 'Inter_700Bold' },
+  metaLabel: { fontSize: 11, fontFamily: 'Inter_500Medium', textTransform: 'uppercase', letterSpacing: 0.5 },
+  metaDivider: { width: 1, marginVertical: 10 },
 });

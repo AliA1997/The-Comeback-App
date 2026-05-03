@@ -13,6 +13,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { TimerProvider } from '@/components/TimerProvider';
 import { AdService } from '@/services/AdService';
 import { NotificationService } from '@/services/NotificationService';
 
@@ -20,13 +21,13 @@ SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient();
 
-// Initialize services
+// Initialize services once at module level
 AdService.initialize();
 NotificationService.initialize();
 
 function RootLayoutNav() {
   return (
-    <Stack screenOptions={{ headerShown: false }}>
+    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#0A0E1A' } }}>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen
         name="timer"
@@ -38,6 +39,14 @@ function RootLayoutNav() {
       />
       <Stack.Screen
         name="task-form"
+        options={{
+          headerShown: false,
+          presentation: 'modal',
+          animation: 'slide_from_bottom',
+        }}
+      />
+      <Stack.Screen
+        name="privacy"
         options={{
           headerShown: false,
           presentation: 'modal',
@@ -70,7 +79,10 @@ export default function RootLayout() {
         <QueryClientProvider client={queryClient}>
           <GestureHandlerRootView style={{ flex: 1 }}>
             <KeyboardProvider>
-              <RootLayoutNav />
+              {/* TimerProvider owns the single global interval — prevents double-tick */}
+              <TimerProvider>
+                <RootLayoutNav />
+              </TimerProvider>
             </KeyboardProvider>
           </GestureHandlerRootView>
         </QueryClientProvider>

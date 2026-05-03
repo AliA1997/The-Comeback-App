@@ -4,7 +4,6 @@ import { useRouter } from 'expo-router';
 import React, { useMemo } from 'react';
 import {
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -12,12 +11,14 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ActiveTimerBanner } from '@/components/ActiveTimerBanner';
 import { AdBanner } from '@/components/AdBanner';
-import { StatsCard } from '@/components/StatsCard';
+import { EmptyState } from '@/components/EmptyState';
+import { LandingOverlay } from '@/components/LandingOverlay';
+import { QuickStatsRow } from '@/components/QuickStatsRow';
 import { TaskCard } from '@/components/TaskCard';
 import { useColors } from '@/hooks/useColors';
 import { useIdleDetection } from '@/hooks/useIdleDetection';
-import { useTimer } from '@/hooks/useTimer';
 import { useAppStore } from '@/store/useAppStore';
 import { generateSuggestions, getNextBestTask } from '@/services/SuggestionEngine';
 
@@ -36,8 +37,7 @@ export default function DashboardScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { tasks, dayRecords, getTodayStats, getStreak, activeTimer } = useAppStore();
-  const { task: activeTask } = useTimer();
+  const { tasks, dayRecords, getTodayStats, getStreak, _hasHydrated, hasSeenLanding } = useAppStore();
   useIdleDetection();
 
   const stats = getTodayStats();
@@ -45,11 +45,13 @@ export default function DashboardScreen() {
   const today = todayStr();
   const todayTasks = tasks.filter((t) => t.date === today && t.status === 'pending');
   const completedToday = tasks.filter((t) => t.date === today && t.status === 'completed');
+  const inProgressToday = tasks.filter((t) => t.date === today && t.status === 'in_progress');
 
   const suggestions = useMemo(() => generateSuggestions(tasks, dayRecords), [tasks, dayRecords]);
   const nextBest = useMemo(() => getNextBestTask(tasks, dayRecords), [tasks, dayRecords]);
+  const topSuggestion = suggestions.find((s) => s.type === 'warning') ?? suggestions[0] ?? null;
 
-  const topInsight = suggestions[0] ?? null;
+  const showLanding = _hasHydrated && !hasSeenLanding;
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
@@ -59,7 +61,7 @@ export default function DashboardScreen() {
           styles.content,
           {
             paddingTop: Platform.OS === 'web' ? insets.top + 67 : insets.top + 16,
-            paddingBottom: 120,
+            paddingBottom: 120 + (Platform.OS === 'web' ? 34 : 0),
           },
         ]}
         showsVerticalScrollIndicator={false}
@@ -70,7 +72,7 @@ export default function DashboardScreen() {
             <Text style={[styles.greeting, { color: colors.mutedForeground }]}>
               {greetingText()}
             </Text>
-            <Text style={[styles.title, { color: colors.foreground }]}>Career Dashboard</Text>
+            <Text style={[styles.title, { color: colors.foreground }]}>Dashboard</Text>
           </View>
           <TouchableOpacity
             style={[styles.addBtn, { backgroundColor: colors.primary }]}
@@ -78,77 +80,75 @@ export default function DashboardScreen() {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
               router.push('/task-form');
             }}
+            activeOpacity={0.85}
           >
-            <Feather name="plus" size={20} color="#fff" />
+            <Feather name="plus" size={22} color="#fff" />
           </TouchableOpacity>
         </View>
 
-        {/* Stats Row */}
-        <View style={styles.statsRow}>
-          <StatsCard label="Done today" value={stats.completedCount} />
-          <StatsCard
-            label="Time logged"
-            value={stats.totalMinutes >= 60
-              ? `${Math.floor(stats.totalMinutes / 60)}h ${stats.totalMinutes % 60}m`
-              : `${stats.totalMinutes}m`}
-          />
-          <StatsCard label="Day streak" value={streak} accent />
-        </View>
+        {/* Stats */}
+        <QuickStatsRow
+          completedCount={stats.completedCount}
+          totalMinutes={stats.totalMinutes}
+          streak={streak}
+        />
 
         {/* Active Timer Banner */}
-        {activeTimer && activeTask ? (
-          <Pressable
-            style={[styles.activeBanner, { backgroundColor: colors.primary }]}
-            onPress={() => router.push('/timer')}
-          >
-            <View style={styles.activeBannerLeft}>
-              <View style={styles.pulsingDot} />
-              <View>
-                <Text style={styles.activeBannerLabel}>Active Timer</Text>
-                <Text style={styles.activeBannerTask} numberOfLines={1}>
-                  {activeTask.title}
-                </Text>
-              </View>
-            </View>
-            <View style={styles.activeBannerRight}>
-              <Text style={styles.activeBannerTime}>
-                {String(Math.floor(activeTimer.remainingSeconds / 60)).padStart(2, '0')}:
-                {String(activeTimer.remainingSeconds % 60).padStart(2, '0')}
-              </Text>
-              <Feather name="chevron-right" size={18} color="rgba(255,255,255,0.7)" />
-            </View>
-          </Pressable>
-        ) : null}
+        <ActiveTimerBanner />
 
-        {/* Top Insight */}
-        {topInsight ? (
-          <View style={[styles.insightCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        {/* Top Suggestion strip */}
+        {topSuggestion && tasks.length > 0 ? (
+          <TouchableOpacity
+            style={[styles.insightStrip, { backgroundColor: colors.card, borderColor: colors.border }]}
+            onPress={() => router.push('/(tabs)/insights' as any)}
+            activeOpacity={0.8}
+          >
             <Feather name="zap" size={14} color={colors.primary} />
-            <Text style={[styles.insightText, { color: colors.mutedForeground }]} numberOfLines={2}>
-              {topInsight.message}
+            <Text style={[styles.insightText, { color: colors.mutedForeground }]} numberOfLines={1}>
+              {topSuggestion.message}
             </Text>
-            <TouchableOpacity onPress={() => router.push('/(tabs)/insights' as any)}>
-              <Feather name="arrow-right" size={16} color={colors.primary} />
-            </TouchableOpacity>
-          </View>
+            <Feather name="chevron-right" size={14} color={colors.primary} />
+          </TouchableOpacity>
         ) : null}
 
         {/* Next Best Task */}
         {nextBest ? (
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Next Best Task</Text>
-            <TaskCard task={nextBest} onEdit={() => router.push({ pathname: '/task-form', params: { id: nextBest.id } })} />
+            <View style={styles.sectionRow}>
+              <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Next Best Task</Text>
+              <View style={[styles.recBadge, { backgroundColor: `${colors.accent}22` }]}>
+                <Text style={[styles.recBadgeText, { color: colors.accent }]}>Recommended</Text>
+              </View>
+            </View>
+            <TaskCard
+              task={nextBest}
+              onEdit={() => router.push({ pathname: '/task-form', params: { id: nextBest.id } })}
+            />
           </View>
         ) : null}
 
-        {/* Today's Pending Tasks */}
+        {/* In Progress */}
+        {inProgressToday.filter((t) => t.id !== nextBest?.id).length > 0 ? (
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>In Progress</Text>
+            {inProgressToday
+              .filter((t) => t.id !== nextBest?.id)
+              .map((task) => (
+                <TaskCard
+                  key={task.id}
+                  task={task}
+                  onEdit={() => router.push({ pathname: '/task-form', params: { id: task.id } })}
+                />
+              ))}
+          </View>
+        ) : null}
+
+        {/* Today's pending tasks */}
         {todayTasks.filter((t) => t.id !== nextBest?.id).length > 0 ? (
           <View style={styles.section}>
             <View style={styles.sectionRow}>
-              <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-                Today's Tasks
-              </Text>
-              <Text style={[styles.sectionCount, { color: colors.mutedForeground }]}>
+              <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Today</Text>
+              <Text style={[styles.count, { color: colors.mutedForeground }]}>
                 {todayTasks.length} pending
               </Text>
             </View>
@@ -159,9 +159,7 @@ export default function DashboardScreen() {
                 <TaskCard
                   key={task.id}
                   task={task}
-                  onEdit={() =>
-                    router.push({ pathname: '/task-form', params: { id: task.id } })
-                  }
+                  onEdit={() => router.push({ pathname: '/task-form', params: { id: task.id } })}
                 />
               ))}
             {todayTasks.length > 6 ? (
@@ -174,38 +172,32 @@ export default function DashboardScreen() {
           </View>
         ) : null}
 
-        {/* Recently Completed */}
+        {/* Completed today */}
         {completedToday.length > 0 ? (
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Completed Today</Text>
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Completed today</Text>
             {completedToday.slice(0, 3).map((task) => (
               <TaskCard key={task.id} task={task} />
             ))}
           </View>
         ) : null}
 
-        {/* Empty State */}
-        {tasks.length === 0 ? (
-          <View style={styles.empty}>
-            <Feather name="briefcase" size={48} color={colors.border} />
-            <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
-              Start your comeback
-            </Text>
-            <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
-              Add your first task to begin tracking your progress back into the industry.
-            </Text>
-            <TouchableOpacity
-              style={[styles.emptyBtn, { backgroundColor: colors.primary }]}
-              onPress={() => router.push('/task-form')}
-            >
-              <Feather name="plus" size={16} color="#fff" />
-              <Text style={styles.emptyBtnText}>Add your first task</Text>
-            </TouchableOpacity>
-          </View>
+        {/* Empty state */}
+        {tasks.length === 0 && _hasHydrated && hasSeenLanding ? (
+          <EmptyState
+            icon="briefcase"
+            title="Start your comeback"
+            message="Add your first task to begin tracking your progress back into the industry."
+            actionLabel="Add first task"
+            onAction={() => router.push('/task-form')}
+          />
         ) : null}
       </ScrollView>
 
       <AdBanner />
+
+      {/* Animated landing overlay — shown only on first launch */}
+      {showLanding ? <LandingOverlay /> : null}
     </View>
   );
 }
@@ -221,64 +213,29 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   greeting: { fontSize: 13, fontFamily: 'Inter_400Regular', marginBottom: 2 },
-  title: { fontSize: 26, fontFamily: 'Inter_700Bold', letterSpacing: -0.5 },
+  title: { fontSize: 28, fontFamily: 'Inter_700Bold', letterSpacing: -0.5 },
   addBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#4F7FFF',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 6,
   },
-  statsRow: { flexDirection: 'row', gap: 10, marginBottom: 16 },
-  activeBanner: {
-    borderRadius: 16,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  activeBannerLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
-  pulsingDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#fff',
-  },
-  activeBannerLabel: {
-    fontSize: 11,
-    fontFamily: 'Inter_500Medium',
-    color: 'rgba(255,255,255,0.7)',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  activeBannerTask: {
-    fontSize: 15,
-    fontFamily: 'Inter_600SemiBold',
-    color: '#fff',
-    marginTop: 1,
-  },
-  activeBannerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  activeBannerTime: {
-    fontSize: 20,
-    fontFamily: 'Inter_700Bold',
-    color: '#fff',
-    letterSpacing: -0.5,
-  },
-  insightCard: {
+  insightStrip: {
     borderRadius: 12,
-    padding: 14,
+    padding: 12,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
     borderWidth: 1,
     marginBottom: 20,
   },
-  insightText: { flex: 1, fontSize: 13, fontFamily: 'Inter_400Regular', lineHeight: 18 },
+  insightText: { flex: 1, fontSize: 13, fontFamily: 'Inter_400Regular' },
   section: { marginBottom: 24 },
   sectionRow: {
     flexDirection: 'row',
@@ -286,26 +243,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 12,
   },
-  sectionTitle: { fontSize: 18, fontFamily: 'Inter_700Bold', letterSpacing: -0.3, marginBottom: 12 },
-  sectionCount: { fontSize: 13, fontFamily: 'Inter_400Regular' },
+  sectionTitle: {
+    fontSize: 18,
+    fontFamily: 'Inter_700Bold',
+    letterSpacing: -0.3,
+    marginBottom: 12,
+  },
+  recBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
+  recBadgeText: { fontSize: 11, fontFamily: 'Inter_600SemiBold', letterSpacing: 0.3 },
+  count: { fontSize: 13, fontFamily: 'Inter_400Regular' },
   viewAll: { fontSize: 14, fontFamily: 'Inter_600SemiBold', textAlign: 'center', marginTop: 4 },
-  empty: { alignItems: 'center', paddingTop: 60, gap: 12 },
-  emptyTitle: { fontSize: 22, fontFamily: 'Inter_700Bold', marginTop: 8 },
-  emptyText: {
-    fontSize: 15,
-    fontFamily: 'Inter_400Regular',
-    textAlign: 'center',
-    lineHeight: 22,
-    maxWidth: 300,
-  },
-  emptyBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 24,
-    paddingVertical: 14,
-    borderRadius: 30,
-    marginTop: 8,
-  },
-  emptyBtnText: { color: '#fff', fontSize: 15, fontFamily: 'Inter_600SemiBold' },
 });
