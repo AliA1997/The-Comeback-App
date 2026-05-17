@@ -2,27 +2,28 @@ import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useMemo } from 'react';
-import {
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ActiveTimerBanner } from '@/components/ActiveTimerBanner';
-import { AdBanner } from '@/components/AdBanner';
-import { EmptyState } from '@/components/EmptyState';
-import { LandingOverlay } from '@/components/LandingOverlay';
-import { QuickStatsRow } from '@/components/QuickStatsRow';
-import { TaskCard } from '@/components/TaskCard';
-import { useColors } from '@/hooks/useColors';
-import { useIdleDetection } from '@/hooks/useIdleDetection';
-import { computeStreak, computeTodayStats } from '@/lib/computations';
-import { todayStr } from '@/lib/dateUtils';
-import { useDayRecords, useHydrationState, useTasks } from '@/store/selectors';
-import { generateSuggestions, getNextBestTask } from '@/services/SuggestionEngine';
+import { AdBanner } from '@/shared/ui/AdBanner';
+import { EmptyState } from '@/shared/ui/EmptyState';
+import { QuickStatsRow } from '@/shared/ui/QuickStatsRow';
+import { useColors } from '@/shared/theme/useColors';
+import { todayStr } from '@/shared/lib/dateUtils';
+import { useHydrationState } from '@/shared/store/root';
+import { ActiveTimerBanner } from '@/domains/time-focus/components/ActiveTimerBanner';
+import { useIdleDetection } from '@/domains/time-focus/hooks/useIdleDetection';
+import { TaskCard } from '@/domains/task-planning/components/TaskCard';
+import { useTasks } from '@/domains/task-planning/selectors';
+import { useDayRecords } from '@/domains/progress/selectors';
+import { computeStreak } from '@/domains/progress/services/StreakEngine';
+import { computeTodayStats } from '@/domains/progress/services/StatsEngine';
+import {
+  generateSuggestions,
+  getNextBestTask,
+} from '@/domains/progress/services/SuggestionEngine';
+import { useOnboardingComplete, useProfileName } from '@/domains/user-profile/selectors';
+import { OnboardingWizard } from '@/domains/user-profile/components/OnboardingWizard';
+import { NotificationBell } from '@/domains/notifications/components/NotificationBell';
 
 function greetingText(): string {
   const h = new Date().getHours();
@@ -39,12 +40,13 @@ export default function DashboardScreen() {
   // Granular subscriptions — this screen does NOT re-render on timer ticks.
   const tasks = useTasks();
   const dayRecords = useDayRecords();
-  const { hasHydrated, hasSeenLanding } = useHydrationState();
+  const { hasHydrated, onboardingComplete } = useHydrationState();
+  const name = useProfileName();
   useIdleDetection();
 
   const today = todayStr();
 
-  // All derived data is memoized so it only recomputes when its inputs change.
+  // Pure derivations memoized on their inputs.
   const stats = useMemo(() => computeTodayStats(tasks, dayRecords), [tasks, dayRecords]);
   const streak = useMemo(() => computeStreak(dayRecords), [dayRecords]);
 
@@ -89,7 +91,8 @@ export default function DashboardScreen() {
     router.push('/task-form');
   }, [router]);
 
-  const showLanding = hasHydrated && !hasSeenLanding;
+  const showOnboarding = hasHydrated && !onboardingComplete;
+  const greeting = name ? `${greetingText()}, ${name}` : greetingText();
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
@@ -106,36 +109,37 @@ export default function DashboardScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <View>
-            <Text style={[styles.greeting, { color: colors.mutedForeground }]}>
-              {greetingText()}
-            </Text>
+          <View style={styles.headerLeft}>
+            <Text style={[styles.greeting, { color: colors.mutedForeground }]}>{greeting}</Text>
             <Text style={[styles.title, { color: colors.foreground }]}>Dashboard</Text>
           </View>
-          <TouchableOpacity
-            style={[styles.addBtn, { backgroundColor: colors.primary }]}
-            onPress={handleAdd}
-            activeOpacity={0.85}
-          >
-            <Feather name="plus" size={22} color="#fff" />
-          </TouchableOpacity>
+          <View style={styles.headerRight}>
+            <NotificationBell />
+            <TouchableOpacity
+              style={[styles.addBtn, { backgroundColor: colors.primary }]}
+              onPress={handleAdd}
+              activeOpacity={0.85}
+            >
+              <Feather name="plus" size={22} color="#fff" />
+            </TouchableOpacity>
+          </View>
         </View>
 
-        {/* Stats */}
         <QuickStatsRow
           completedCount={stats.completedCount}
           totalMinutes={stats.totalMinutes}
           streak={streak}
         />
 
-        {/* Active Timer Banner */}
         <ActiveTimerBanner />
 
-        {/* Top Suggestion strip */}
         {topSuggestion && tasks.length > 0 ? (
           <TouchableOpacity
-            style={[styles.insightStrip, { backgroundColor: colors.card, borderColor: colors.border }]}
-            onPress={() => router.push('/(tabs)/insights' as any)}
+            style={[
+              styles.insightStrip,
+              { backgroundColor: colors.card, borderColor: colors.border },
+            ]}
+            onPress={() => router.push('/(tabs)/insights')}
             activeOpacity={0.8}
           >
             <Feather name="zap" size={14} color={colors.primary} />
@@ -146,7 +150,6 @@ export default function DashboardScreen() {
           </TouchableOpacity>
         ) : null}
 
-        {/* Next Best Task */}
         {nextBest ? (
           <View style={styles.section}>
             <View style={styles.sectionRow}>
@@ -159,10 +162,15 @@ export default function DashboardScreen() {
           </View>
         ) : null}
 
-        {/* In Progress */}
         {inProgressOthers.length > 0 ? (
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, styles.sectionTitleSpaced, { color: colors.foreground }]}>
+            <Text
+              style={[
+                styles.sectionTitle,
+                styles.sectionTitleSpaced,
+                { color: colors.foreground },
+              ]}
+            >
               In Progress
             </Text>
             {inProgressOthers.map((task) => (
@@ -171,7 +179,6 @@ export default function DashboardScreen() {
           </View>
         ) : null}
 
-        {/* Today's pending tasks */}
         {todayOthers.length > 0 ? (
           <View style={styles.section}>
             <View style={styles.sectionRow}>
@@ -184,7 +191,7 @@ export default function DashboardScreen() {
               <TaskCard key={task.id} task={task} onEdit={() => handleEdit(task.id)} />
             ))}
             {todayTasks.length > 6 ? (
-              <TouchableOpacity onPress={() => router.push('/(tabs)/tasks' as any)}>
+              <TouchableOpacity onPress={() => router.push('/(tabs)/tasks')}>
                 <Text style={[styles.viewAll, { color: colors.primary }]}>
                   View all {todayTasks.length} tasks
                 </Text>
@@ -193,10 +200,15 @@ export default function DashboardScreen() {
           </View>
         ) : null}
 
-        {/* Completed today */}
         {completedToday.length > 0 ? (
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, styles.sectionTitleSpaced, { color: colors.foreground }]}>
+            <Text
+              style={[
+                styles.sectionTitle,
+                styles.sectionTitleSpaced,
+                { color: colors.foreground },
+              ]}
+            >
               Completed today
             </Text>
             {completedToday.slice(0, 3).map((task) => (
@@ -205,8 +217,7 @@ export default function DashboardScreen() {
           </View>
         ) : null}
 
-        {/* Empty state */}
-        {tasks.length === 0 && hasHydrated && hasSeenLanding ? (
+        {tasks.length === 0 && hasHydrated && onboardingComplete ? (
           <EmptyState
             icon="briefcase"
             title="Start your comeback"
@@ -219,8 +230,7 @@ export default function DashboardScreen() {
 
       <AdBanner />
 
-      {/* Animated landing overlay — shown only on first launch */}
-      {showLanding ? <LandingOverlay /> : null}
+      {showOnboarding ? <OnboardingWizard /> : null}
     </View>
   );
 }
@@ -234,7 +244,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 20,
+    gap: 12,
   },
+  headerLeft: { flex: 1, minWidth: 0 },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   greeting: { fontSize: 13, fontFamily: 'Inter_400Regular', marginBottom: 2 },
   title: { fontSize: 28, fontFamily: 'Inter_700Bold', letterSpacing: -0.5 },
   addBtn: {
@@ -271,9 +284,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_700Bold',
     letterSpacing: -0.3,
   },
-  sectionTitleSpaced: {
-    marginBottom: 12,
-  },
+  sectionTitleSpaced: { marginBottom: 12 },
   recBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
   recBadgeText: { fontSize: 11, fontFamily: 'Inter_600SemiBold', letterSpacing: 0.3 },
   count: { fontSize: 13, fontFamily: 'Inter_400Regular' },

@@ -1,7 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -14,10 +14,10 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { CategoryBadge } from '@/components/CategoryBadge';
-import { useColors } from '@/hooks/useColors';
-import { useAppStore } from '@/store/useAppStore';
-import type { TaskCategory } from '@/types';
+import { CategoryBadge } from '@/shared/ui/CategoryBadge';
+import { useColors } from '@/shared/theme/useColors';
+import { useAppStore } from '@/shared/store/root';
+import type { TaskCategory } from '@/domains/task-planning/types';
 
 const CATEGORIES: TaskCategory[] = [
   'LeetCode',
@@ -88,7 +88,6 @@ export default function TaskFormScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()}>
             <Feather name="x" size={24} color={colors.mutedForeground} />
@@ -107,7 +106,6 @@ export default function TaskFormScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Title */}
         <View style={styles.field}>
           <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Title *</Text>
           <TextInput
@@ -129,14 +127,17 @@ export default function TaskFormScreen() {
           />
         </View>
 
-        {/* Description */}
         <View style={styles.field}>
           <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Notes</Text>
           <TextInput
             style={[
               styles.input,
               styles.textarea,
-              { backgroundColor: colors.card, color: colors.foreground, borderColor: colors.border },
+              {
+                backgroundColor: colors.card,
+                color: colors.foreground,
+                borderColor: colors.border,
+              },
             ]}
             value={description}
             onChangeText={setDescription}
@@ -149,7 +150,6 @@ export default function TaskFormScreen() {
           />
         </View>
 
-        {/* Category */}
         <View style={styles.field}>
           <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Category</Text>
           <View style={styles.categoryGrid}>
@@ -177,7 +177,6 @@ export default function TaskFormScreen() {
           </View>
         </View>
 
-        {/* Duration */}
         <View style={styles.field}>
           <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>
             Estimated Duration · {duration}m
@@ -230,7 +229,12 @@ const styles = StyleSheet.create({
   saveBtn: { paddingHorizontal: 20, paddingVertical: 9, borderRadius: 20 },
   saveBtnText: { fontSize: 14, fontFamily: 'Inter_700Bold' },
   field: { gap: 10 },
-  fieldLabel: { fontSize: 13, fontFamily: 'Inter_500Medium', textTransform: 'uppercase', letterSpacing: 0.5 },
+  fieldLabel: {
+    fontSize: 13,
+    fontFamily: 'Inter_500Medium',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
   input: {
     borderRadius: 12,
     borderWidth: 1.5,

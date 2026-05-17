@@ -12,46 +12,45 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { CategoryBadge } from '@/components/CategoryBadge';
-import { TimerDisplay } from '@/components/TimerDisplay';
-import { EmptyState } from '@/components/EmptyState';
-import { useColors } from '@/hooks/useColors';
-import { useTimer } from '@/hooks/useTimer';
-import { useAppStore } from '@/store/useAppStore';
-
-// Individual action selectors → stable function references → no re-renders.
-function useTimerActions() {
-  const pauseTimer = useAppStore((s) => s.pauseTimer);
-  const resumeTimer = useAppStore((s) => s.resumeTimer);
-  const stopTimer = useAppStore((s) => s.stopTimer);
-  const completeTimer = useAppStore((s) => s.completeTimer);
-  return { pauseTimer, resumeTimer, stopTimer, completeTimer };
-}
+import { CategoryBadge } from '@/shared/ui/CategoryBadge';
+import { EmptyState } from '@/shared/ui/EmptyState';
+import { useColors } from '@/shared/theme/useColors';
+import { TimerDisplay } from '@/domains/time-focus/components/TimerDisplay';
+import { useActiveTimer, useIsTimerPaused } from '@/domains/time-focus/selectors';
+import { useActiveTask } from '@/domains/task-planning/selectors';
+import {
+  pauseSession,
+  resumeSession,
+  stopSession,
+  completeSession,
+} from '@/domains/time-focus/services/SessionLifecycle';
 
 export default function TimerScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
-  // useTimer is now read-only — interval is in TimerProvider.
-  // The screen DOES intentionally re-render every second (the user is
-  // actively watching the countdown), but the rest of the app does not.
-  const { activeTimer, task } = useTimer();
-  const { pauseTimer, resumeTimer, stopTimer, completeTimer } = useTimerActions();
+  // We subscribe to the activeTimer object for static fields (totalSeconds,
+  // startedAt, etc.) — fine because they don't change every tick. The
+  // displayed seconds is rendered inside <TimerDisplay> via TimerSecondsText,
+  // so the rest of this screen only re-renders on real state changes.
+  const activeTimer = useActiveTimer();
+  const task = useActiveTask();
+  const isPaused = useIsTimerPaused();
 
   const handlePauseResume = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (activeTimer?.isRunning) {
-      pauseTimer();
+    if (isPaused) {
+      resumeSession();
     } else {
-      resumeTimer();
+      pauseSession();
     }
   };
 
   const handleStop = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     if (Platform.OS === 'web') {
-      stopTimer();
+      stopSession();
       router.back();
       return;
     }
@@ -61,7 +60,7 @@ export default function TimerScreen() {
         text: 'Stop',
         style: 'destructive',
         onPress: () => {
-          stopTimer();
+          stopSession();
           router.back();
         },
       },
@@ -70,7 +69,7 @@ export default function TimerScreen() {
 
   const handleComplete = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    completeTimer();
+    completeSession();
     router.back();
   };
 
@@ -92,12 +91,8 @@ export default function TimerScreen() {
     );
   }
 
-  const elapsedSeconds = activeTimer.totalSeconds - activeTimer.remainingSeconds;
-  const elapsedMinutes = Math.round(elapsedSeconds / 60);
-
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
-      {/* Close button */}
       <TouchableOpacity
         style={[
           styles.closeBtn,
@@ -117,7 +112,6 @@ export default function TimerScreen() {
           { paddingBottom: insets.bottom + (Platform.OS === 'web' ? 34 : 16) },
         ]}
       >
-        {/* Task info */}
         <View style={styles.taskInfo}>
           <CategoryBadge category={task.category} />
           <Text style={[styles.taskTitle, { color: colors.foreground }]} numberOfLines={2}>
@@ -130,14 +124,9 @@ export default function TimerScreen() {
           ) : null}
         </View>
 
-        {/* Timer ring */}
         <View style={styles.timerWrap}>
-          <TimerDisplay
-            remainingSeconds={activeTimer.remainingSeconds}
-            totalSeconds={activeTimer.totalSeconds}
-            size={280}
-          />
-          {activeTimer.isPaused ? (
+          <TimerDisplay size={280} />
+          {isPaused ? (
             <View style={[styles.pausedBadge, { backgroundColor: `${colors.primary}22` }]}>
               <Feather name="pause" size={12} color={colors.primary} />
               <Text style={[styles.pausedText, { color: colors.primary }]}>Paused</Text>
@@ -145,9 +134,7 @@ export default function TimerScreen() {
           ) : null}
         </View>
 
-        {/* Controls row */}
         <View style={styles.controls}>
-          {/* Stop */}
           <TouchableOpacity
             style={[styles.secondaryBtn, { borderColor: colors.destructive }]}
             onPress={handleStop}
@@ -156,18 +143,16 @@ export default function TimerScreen() {
             <Feather name="square" size={22} color={colors.destructive} />
           </TouchableOpacity>
 
-          {/* Pause / Resume */}
           <Pressable
             style={[
               styles.mainBtn,
-              { backgroundColor: activeTimer.isPaused ? colors.accent : colors.primary },
+              { backgroundColor: isPaused ? colors.accent : colors.primary },
             ]}
             onPress={handlePauseResume}
           >
-            <Feather name={activeTimer.isPaused ? 'play' : 'pause'} size={30} color="#fff" />
+            <Feather name={isPaused ? 'play' : 'pause'} size={30} color="#fff" />
           </Pressable>
 
-          {/* Done */}
           <TouchableOpacity
             style={[styles.secondaryBtn, { borderColor: colors.accent }]}
             onPress={handleComplete}
@@ -177,8 +162,9 @@ export default function TimerScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Meta info */}
-        <View style={[styles.metaRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View
+          style={[styles.metaRow, { backgroundColor: colors.card, borderColor: colors.border }]}
+        >
           <View style={styles.metaItem}>
             <Text style={[styles.metaValue, { color: colors.foreground }]}>
               {task.estimatedDuration}m
@@ -187,15 +173,17 @@ export default function TimerScreen() {
           </View>
           <View style={[styles.metaDivider, { backgroundColor: colors.border }]} />
           <View style={styles.metaItem}>
-            <Text style={[styles.metaValue, { color: colors.foreground }]}>{elapsedMinutes}m</Text>
-            <Text style={[styles.metaLabel, { color: colors.mutedForeground }]}>Elapsed</Text>
+            <Text style={[styles.metaValue, { color: colors.foreground }]}>
+              {Math.round(activeTimer.totalSeconds / 60)}m
+            </Text>
+            <Text style={[styles.metaLabel, { color: colors.mutedForeground }]}>Session</Text>
           </View>
           <View style={[styles.metaDivider, { backgroundColor: colors.border }]} />
           <View style={styles.metaItem}>
             <Text style={[styles.metaValue, { color: colors.foreground }]}>
-              {Math.round(activeTimer.remainingSeconds / 60)}m
+              {task.category}
             </Text>
-            <Text style={[styles.metaLabel, { color: colors.mutedForeground }]}>Remaining</Text>
+            <Text style={[styles.metaLabel, { color: colors.mutedForeground }]}>Category</Text>
           </View>
         </View>
       </View>
@@ -270,7 +258,12 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   metaItem: { flex: 1, alignItems: 'center', paddingVertical: 14, gap: 3 },
-  metaValue: { fontSize: 18, fontFamily: 'Inter_700Bold' },
-  metaLabel: { fontSize: 11, fontFamily: 'Inter_500Medium', textTransform: 'uppercase', letterSpacing: 0.5 },
+  metaValue: { fontSize: 16, fontFamily: 'Inter_700Bold' },
+  metaLabel: {
+    fontSize: 11,
+    fontFamily: 'Inter_500Medium',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
   metaDivider: { width: 1, marginVertical: 10 },
 });

@@ -12,10 +12,10 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { TaskCard } from '@/components/TaskCard';
-import { useColors } from '@/hooks/useColors';
-import { useTasks } from '@/store/selectors';
-import type { TaskCategory, TaskStatus } from '@/types';
+import { useColors } from '@/shared/theme/useColors';
+import { TaskCard } from '@/domains/task-planning/components/TaskCard';
+import { useTasks } from '@/domains/task-planning/selectors';
+import type { TaskCategory, TaskStatus } from '@/domains/task-planning/types';
 
 const CATEGORIES: (TaskCategory | 'All')[] = [
   'All',
@@ -27,7 +27,13 @@ const CATEGORIES: (TaskCategory | 'All')[] = [
   'Networking',
 ];
 
-const STATUS_FILTERS: (TaskStatus | 'All')[] = ['All', 'pending', 'in_progress', 'completed', 'skipped'];
+const STATUS_FILTERS: (TaskStatus | 'All')[] = [
+  'All',
+  'pending',
+  'in_progress',
+  'completed',
+  'skipped',
+];
 
 export default function TasksScreen() {
   const colors = useColors();
@@ -60,7 +66,6 @@ export default function TasksScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
         <View style={styles.header}>
           <View>
             <Text style={[styles.title, { color: colors.foreground }]}>Tasks</Text>
@@ -79,7 +84,6 @@ export default function TasksScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Status Filter */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -109,14 +113,15 @@ export default function TasksScreen() {
                     { color: active ? '#fff' : colors.mutedForeground },
                   ]}
                 >
-                  {status === 'in_progress' ? 'In Progress' : status.charAt(0).toUpperCase() + status.slice(1)}
+                  {status === 'in_progress'
+                    ? 'In Progress'
+                    : status.charAt(0).toUpperCase() + status.slice(1)}
                 </Text>
               </Pressable>
             );
           })}
         </ScrollView>
 
-        {/* Category Filter */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -153,7 +158,6 @@ export default function TasksScreen() {
           })}
         </ScrollView>
 
-        {/* Task List */}
         {filtered.length === 0 ? (
           <View style={styles.empty}>
             <Feather name="inbox" size={40} color={colors.border} />
@@ -179,9 +183,7 @@ export default function TasksScreen() {
               <TaskCard
                 key={task.id}
                 task={task}
-                onEdit={() =>
-                  router.push({ pathname: '/task-form', params: { id: task.id } })
-                }
+                onEdit={() => router.push({ pathname: '/task-form', params: { id: task.id } })}
               />
             ))}
           </View>
@@ -222,7 +224,13 @@ const styles = StyleSheet.create({
   list: { paddingTop: 8 },
   empty: { alignItems: 'center', paddingTop: 60, gap: 10 },
   emptyTitle: { fontSize: 18, fontFamily: 'Inter_700Bold', marginTop: 8 },
-  emptyText: { fontSize: 14, fontFamily: 'Inter_400Regular', textAlign: 'center', maxWidth: 260, lineHeight: 20 },
+  emptyText: {
+    fontSize: 14,
+    fontFamily: 'Inter_400Regular',
+    textAlign: 'center',
+    maxWidth: 260,
+    lineHeight: 20,
+  },
   emptyBtn: {
     flexDirection: 'row',
     alignItems: 'center',

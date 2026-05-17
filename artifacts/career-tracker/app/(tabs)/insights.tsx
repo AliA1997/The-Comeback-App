@@ -4,12 +4,16 @@ import { useRouter } from 'expo-router';
 import React, { useMemo } from 'react';
 import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { SuggestionCard } from '@/components/SuggestionCard';
-import { useColors } from '@/hooks/useColors';
-import { getLastNDays } from '@/lib/dateUtils';
-import { useDayRecords, useTasks } from '@/store/selectors';
-import { generateSuggestions, getNextBestTask } from '@/services/SuggestionEngine';
-import type { TaskCategory } from '@/types';
+import { useColors } from '@/shared/theme/useColors';
+import { getLastNDays } from '@/shared/lib/dateUtils';
+import { SuggestionCard } from '@/domains/progress/components/SuggestionCard';
+import { useTasks } from '@/domains/task-planning/selectors';
+import { useDayRecords } from '@/domains/progress/selectors';
+import {
+  generateSuggestions,
+  getNextBestTask,
+} from '@/domains/progress/services/SuggestionEngine';
+import type { TaskCategory } from '@/domains/task-planning/types';
 
 const CATEGORY_DESCRIPTIONS: Record<TaskCategory, string> = {
   LeetCode: 'Algorithm & data structure practice',
@@ -27,7 +31,10 @@ export default function InsightsScreen() {
   const tasks = useTasks();
   const dayRecords = useDayRecords();
 
-  const suggestions = useMemo(() => generateSuggestions(tasks, dayRecords), [tasks, dayRecords]);
+  const suggestions = useMemo(
+    () => generateSuggestions(tasks, dayRecords),
+    [tasks, dayRecords]
+  );
   const nextBest = useMemo(() => getNextBestTask(tasks, dayRecords), [tasks, dayRecords]);
 
   const last7 = useMemo(() => getLastNDays(7), []);
@@ -63,20 +70,20 @@ export default function InsightsScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
         <Text style={[styles.title, { color: colors.foreground }]}>Career Guidance</Text>
         <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
           Rule-based insights from your activity
         </Text>
 
-        {/* Next Best Task */}
         {nextBest ? (
           <View style={[styles.nextBestCard, { backgroundColor: colors.primary }]}>
             <View style={styles.nextBestTop}>
               <Feather name="target" size={14} color="rgba(255,255,255,0.7)" />
               <Text style={styles.nextBestTopLabel}>Next Best Task</Text>
             </View>
-            <Text style={styles.nextBestTitle} numberOfLines={2}>{nextBest.title}</Text>
+            <Text style={styles.nextBestTitle} numberOfLines={2}>
+              {nextBest.title}
+            </Text>
             <View style={styles.nextBestMeta}>
               <Text style={styles.nextBestMuted}>{nextBest.category}</Text>
               <Text style={styles.nextBestMuted}>·</Text>
@@ -95,7 +102,6 @@ export default function InsightsScreen() {
           </View>
         ) : null}
 
-        {/* This Week */}
         <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.cardTitle, { color: colors.foreground }]}>This Week</Text>
           {completedThisWeek.length > 0 ? (
@@ -127,7 +133,25 @@ export default function InsightsScreen() {
           )}
         </View>
 
-        {/* Insights */}
+        <View style={styles.linkRow}>
+          <TouchableOpacity
+            style={[styles.linkCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+            onPress={() => router.push('/history')}
+          >
+            <Feather name="bar-chart-2" size={18} color={colors.primary} />
+            <Text style={[styles.linkLabel, { color: colors.foreground }]}>History</Text>
+            <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.linkCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+            onPress={() => router.push('/achievements')}
+          >
+            <Feather name="award" size={18} color={colors.accent} />
+            <Text style={[styles.linkLabel, { color: colors.foreground }]}>Achievements</Text>
+            <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
+          </TouchableOpacity>
+        </View>
+
         <Text style={[styles.insightsHeader, { color: colors.foreground }]}>
           Insights · {suggestions.length}
         </Text>
@@ -141,7 +165,9 @@ export default function InsightsScreen() {
             />
           ))
         ) : (
-          <View style={[styles.allGoodCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View
+            style={[styles.allGoodCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+          >
             <Feather name="check-circle" size={32} color={colors.accent} />
             <Text style={[styles.allGoodTitle, { color: colors.foreground }]}>
               You're on track
@@ -152,11 +178,7 @@ export default function InsightsScreen() {
           </View>
         )}
 
-        {/* Privacy Policy link */}
-        <TouchableOpacity
-          style={styles.privacyLink}
-          onPress={() => router.push('/privacy')}
-        >
+        <TouchableOpacity style={styles.privacyLink} onPress={() => router.push('/privacy')}>
           <Feather name="shield" size={13} color={colors.mutedForeground} />
           <Text style={[styles.privacyText, { color: colors.mutedForeground }]}>Privacy Policy</Text>
         </TouchableOpacity>
@@ -168,14 +190,17 @@ export default function InsightsScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   scroll: { flex: 1 },
-  content: { paddingHorizontal: 20, gap: 0 },
+  content: { paddingHorizontal: 20 },
   title: { fontSize: 26, fontFamily: 'Inter_700Bold', letterSpacing: -0.5 },
   subtitle: { fontSize: 13, fontFamily: 'Inter_400Regular', marginTop: 2, marginBottom: 20 },
   nextBestCard: { borderRadius: 20, padding: 20, marginBottom: 16, gap: 8 },
   nextBestTop: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   nextBestTopLabel: {
-    fontSize: 11, fontFamily: 'Inter_600SemiBold', color: 'rgba(255,255,255,0.7)',
-    textTransform: 'uppercase', letterSpacing: 0.5,
+    fontSize: 11,
+    fontFamily: 'Inter_600SemiBold',
+    color: 'rgba(255,255,255,0.7)',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   nextBestTitle: { fontSize: 20, fontFamily: 'Inter_700Bold', color: '#fff', lineHeight: 26 },
   nextBestMeta: { flexDirection: 'row', alignItems: 'center', gap: 6 },
@@ -192,7 +217,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   startBtnText: { fontSize: 14, fontFamily: 'Inter_700Bold' },
-  card: { borderRadius: 16, padding: 18, borderWidth: 1, marginBottom: 20, gap: 12 },
+  card: { borderRadius: 16, padding: 18, borderWidth: 1, marginBottom: 16, gap: 12 },
   cardTitle: { fontSize: 17, fontFamily: 'Inter_700Bold' },
   weekSummary: { fontSize: 13, fontFamily: 'Inter_400Regular', marginTop: -4 },
   catRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
@@ -202,10 +227,27 @@ const styles = StyleSheet.create({
   catCount: { fontSize: 14, fontFamily: 'Inter_700Bold' },
   weekEmpty: { alignItems: 'center', gap: 6, paddingVertical: 4 },
   weekEmptyText: { fontSize: 13, fontFamily: 'Inter_400Regular', textAlign: 'center' },
+  linkRow: { flexDirection: 'row', gap: 10, marginBottom: 24 },
+  linkCard: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  linkLabel: { flex: 1, fontSize: 14, fontFamily: 'Inter_600SemiBold' },
   insightsHeader: { fontSize: 17, fontFamily: 'Inter_700Bold', marginBottom: 12 },
   allGoodCard: { borderRadius: 16, padding: 24, borderWidth: 1, alignItems: 'center', gap: 10 },
   allGoodTitle: { fontSize: 18, fontFamily: 'Inter_700Bold' },
-  allGoodText: { fontSize: 14, fontFamily: 'Inter_400Regular', textAlign: 'center', lineHeight: 20, maxWidth: 280 },
+  allGoodText: {
+    fontSize: 14,
+    fontFamily: 'Inter_400Regular',
+    textAlign: 'center',
+    lineHeight: 20,
+    maxWidth: 280,
+  },
   privacyLink: {
     flexDirection: 'row',
     alignItems: 'center',

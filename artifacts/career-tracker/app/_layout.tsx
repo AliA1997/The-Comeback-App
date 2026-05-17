@@ -12,16 +12,17 @@ import React, { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { ErrorBoundary } from '@/components/ErrorBoundary';
-import { TimerProvider } from '@/components/TimerProvider';
+import { ErrorBoundary } from '@/shared/ui/ErrorBoundary';
+import { TimerProvider } from '@/domains/time-focus/components/TimerProvider';
+import { NudgeProvider } from '@/domains/notifications/components/NudgeProvider';
+import { NotificationService } from '@/domains/notifications/services/NotificationService';
 import { AdService } from '@/services/AdService';
-import { NotificationService } from '@/services/NotificationService';
 
 SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient();
 
-// Initialize services once at module level
+// Initialize service singletons once at module scope.
 AdService.initialize();
 NotificationService.initialize();
 
@@ -31,27 +32,31 @@ function RootLayoutNav() {
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen
         name="timer"
-        options={{
-          headerShown: false,
-          presentation: 'modal',
-          animation: 'slide_from_bottom',
-        }}
+        options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
       />
       <Stack.Screen
         name="task-form"
-        options={{
-          headerShown: false,
-          presentation: 'modal',
-          animation: 'slide_from_bottom',
-        }}
+        options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
       />
       <Stack.Screen
         name="privacy"
-        options={{
-          headerShown: false,
-          presentation: 'modal',
-          animation: 'slide_from_bottom',
-        }}
+        options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
+      />
+      <Stack.Screen
+        name="lesson"
+        options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
+      />
+      <Stack.Screen
+        name="achievements"
+        options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
+      />
+      <Stack.Screen
+        name="notifications"
+        options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
+      />
+      <Stack.Screen
+        name="history"
+        options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
       />
     </Stack>
   );
@@ -81,7 +86,10 @@ export default function RootLayout() {
             <KeyboardProvider>
               {/* TimerProvider owns the single global interval — prevents double-tick */}
               <TimerProvider>
-                <RootLayoutNav />
+                {/* NudgeProvider rolls suggestions into inbox notifications */}
+                <NudgeProvider>
+                  <RootLayoutNav />
+                </NudgeProvider>
               </TimerProvider>
             </KeyboardProvider>
           </GestureHandlerRootView>
