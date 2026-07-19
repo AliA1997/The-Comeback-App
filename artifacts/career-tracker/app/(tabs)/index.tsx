@@ -10,6 +10,7 @@ import { QuickStatsRow } from '@/shared/ui/QuickStatsRow';
 import { useColors } from '@/shared/theme/useColors';
 import { todayStr } from '@/shared/lib/dateUtils';
 import { useHydrationState } from '@/shared/store/root';
+import { DailyPlanCard } from '@/domains/daily-tasks/components/DailyPlanCard';
 import { ActiveTimerBanner } from '@/domains/time-focus/components/ActiveTimerBanner';
 import { useIdleDetection } from '@/domains/time-focus/hooks/useIdleDetection';
 import { TaskCard } from '@/domains/task-planning/components/TaskCard';
@@ -132,6 +133,8 @@ export default function DashboardScreen() {
         />
 
         <ActiveTimerBanner />
+
+        <DailyPlanCard />
 
         {topSuggestion && tasks.length > 0 ? (
           <TouchableOpacity

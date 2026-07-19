@@ -16,6 +16,10 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { useShallow } from 'zustand/react/shallow';
 import {
+  createDailyTasksSlice,
+  type DailyTasksSlice,
+} from '@/domains/daily-tasks/store';
+import {
   createLearningSlice,
   type LearningSlice,
 } from '@/domains/learning/store';
@@ -50,6 +54,7 @@ export type RootState = RootMeta &
   TimeFocusSlice &
   NotificationsSlice &
   TaskPlanningSlice &
+  DailyTasksSlice &
   LearningSlice &
   ProgressSlice;
 
@@ -81,6 +86,11 @@ export const useAppStore = create<RootState>()(
         set as Parameters<typeof createTaskPlanningSlice>[0],
         get as Parameters<typeof createTaskPlanningSlice>[1],
         api as Parameters<typeof createTaskPlanningSlice>[2]
+      ),
+      ...createDailyTasksSlice(
+        set as Parameters<typeof createDailyTasksSlice>[0],
+        get as Parameters<typeof createDailyTasksSlice>[1],
+        api as Parameters<typeof createDailyTasksSlice>[2]
       ),
       ...createLearningSlice(
         set as Parameters<typeof createLearningSlice>[0],
