@@ -7,7 +7,7 @@
  * that call `useAppStore.getState()`. Slices themselves are pure data
  * mutators — they never reach across domains.
  *
- * Subscription rules: see `replit.md` (Performance architecture).
+ * Subscription rules: see `CLAUDE.md` (Standards › Frozen: the countdown timer).
  * tl;dr — never destructure `useAppStore()` without a selector; per-tick
  * subscriptions are isolated to `TimerSecondsText`.
  */
