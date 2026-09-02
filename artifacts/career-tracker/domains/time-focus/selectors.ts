@@ -7,8 +7,6 @@ export const useIsAnyTimerRunning = () => useAppStore((s) => s.activeTimer !== n
 export const useIsTimerPaused = () => useAppStore((s) => s.activeTimer?.isPaused ?? false);
 export const useTimerRemainingSeconds = () =>
   useAppStore((s) => s.activeTimer?.remainingSeconds ?? 0);
-export const useTimerTotalSeconds = () =>
-  useAppStore((s) => s.activeTimer?.totalSeconds ?? 0);
 
 /**
  * True when no session is actively counting down. Returns a boolean so

@@ -11,4 +11,7 @@ export default defineConfig({
   dbCredentials: {
     url: process.env.DATABASE_URL,
   },
+  // Supabase owns `auth`; we declare `auth.users` only so foreign keys are
+  // expressible in Drizzle. Without this filter, push would try to manage it.
+  schemaFilter: ["comebackapp"],
 });

@@ -1,0 +1,26 @@
+# Build context is the repo root; keep it small and free of anything that
+# could shadow what the image installs.
+#
+# Note: workspace package.json files are NOT excluded here — the Dockerfile
+# copies all eight so pnpm's importer set matches the lockfile. Only their
+# sources are left out, via the entries at the bottom.
+**/node_modules
+**/dist
+**/.expo
+**/*.tsbuildinfo
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+
+# Sources not needed to build the API. Their manifests are copied explicitly
+# by the Dockerfile, so these exclusions cannot break `--frozen-lockfile`.
+artifacts/career-tracker/**
+!artifacts/career-tracker/package.json
+artifacts/mockup-sandbox/**
+!artifacts/mockup-sandbox/package.json
+scripts/**
+!scripts/package.json
+attached_assets
+specs

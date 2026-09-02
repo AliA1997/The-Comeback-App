@@ -8,3 +8,274 @@
 export interface HealthStatus {
   status: string;
 }
+
+/**
+ * Field name to message, for rendering inline beneath the field.
+ */
+export type ProblemFieldErrors = { [key: string]: string };
+
+export type ProblemCode = (typeof ProblemCode)[keyof typeof ProblemCode];
+
+export const ProblemCode = {
+  Unauthorized: "Unauthorized",
+  NotFound: "NotFound",
+  DuplicateListName: "DuplicateListName",
+  InvalidTaskTransition: "InvalidTaskTransition",
+  TaskAlreadyCompleted: "TaskAlreadyCompleted",
+  UnknownTaskType: "UnknownTaskType",
+  ValidationError: "ValidationError",
+  InternalError: "InternalError",
+} as const;
+
+/**
+ * A machine-readable code plus copy that is safe to show the user. Per Principle III, no message assigns blame.
+ */
+export interface Problem {
+  code: ProblemCode;
+  title: string;
+  detail?: string;
+  /** Field name to message, for rendering inline beneath the field. */
+  fieldErrors?: ProblemFieldErrors;
+}
+
+export type PriorityLevel = (typeof PriorityLevel)[keyof typeof PriorityLevel];
+
+export const PriorityLevel = {
+  low: "low",
+  medium: "medium",
+  high: "high",
+  urgent: "urgent",
+} as const;
+
+export type TaskStatus = (typeof TaskStatus)[keyof typeof TaskStatus];
+
+export const TaskStatus = {
+  pending: "pending",
+  in_progress: "in_progress",
+  paused: "paused",
+  completed: "completed",
+  deleted: "deleted",
+} as const;
+
+export interface TaskType {
+  id: string;
+  type: string;
+  label: string;
+  score: number;
+  isSystem: boolean;
+}
+
+export interface List {
+  id: string;
+  name: string;
+  position: number;
+  isArchived: boolean;
+  /** Number of non-deleted tasks in the list. */
+  taskCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DeleteListResult {
+  list: List;
+  deletedTaskCount: number;
+}
+
+export interface Task {
+  id: string;
+  listId: string;
+  taskTypeId: string;
+  taskType: TaskType;
+  title: string;
+  description: string;
+  priority: PriorityLevel;
+  /** Server-computed snapshot; clients never send this. */
+  score: number;
+  status: TaskStatus;
+  estimatedDurationMinutes: number;
+  /** @nullable */
+  actualDurationMinutes?: number | null;
+  /** @nullable */
+  savedRemainingSeconds?: number | null;
+  totalPausedMs: number;
+  /** @nullable */
+  startedAt?: string | null;
+  /** @nullable */
+  pausedAt?: string | null;
+  /** @nullable */
+  completedAt?: string | null;
+  /** @nullable */
+  deletedAt?: string | null;
+  /** @nullable */
+  dueDate?: string | null;
+  position: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateListRequest {
+  /**
+   * @minLength 1
+   * @maxLength 60
+   */
+  name: string;
+  position?: number;
+}
+
+export interface UpdateListRequest {
+  /**
+   * @minLength 1
+   * @maxLength 60
+   */
+  name?: string;
+  position?: number;
+  isArchived?: boolean;
+}
+
+export interface CreateTaskRequest {
+  listId: string;
+  taskTypeId: string;
+  /**
+   * @minLength 1
+   * @maxLength 100
+   */
+  title: string;
+  /** @maxLength 500 */
+  description?: string;
+  priority?: PriorityLevel;
+  /**
+   * @minimum 1
+   * @maximum 480
+   */
+  estimatedDurationMinutes?: number;
+  /** @nullable */
+  dueDate?: string | null;
+  position?: number;
+}
+
+export interface UpdateTaskRequest {
+  listId?: string;
+  taskTypeId?: string;
+  /**
+   * @minLength 1
+   * @maxLength 100
+   */
+  title?: string;
+  /** @maxLength 500 */
+  description?: string;
+  priority?: PriorityLevel;
+  /**
+   * @minimum 1
+   * @maximum 480
+   */
+  estimatedDurationMinutes?: number;
+  /** @nullable */
+  dueDate?: string | null;
+  position?: number;
+}
+
+export interface PauseTaskRequest {
+  /** @minimum 0 */
+  savedRemainingSeconds?: number;
+}
+
+export interface StopTaskRequest {
+  /** @minimum 0 */
+  savedRemainingSeconds?: number;
+}
+
+export interface CompleteTaskRequest {
+  /** @minimum 0 */
+  savedRemainingSeconds?: number;
+  /**
+   * Pause time accumulated on the device but not yet synced. Added to the stored total before the focused duration is computed.
+   * @minimum 0
+   */
+  totalPausedMs?: number;
+}
+
+export interface UserPreferences {
+  notificationsEnabled: boolean;
+  nudgesEnabled: boolean;
+  adsEnabled: boolean;
+}
+
+export interface Profile {
+  id: string;
+  /** @nullable */
+  displayName?: string | null;
+  /** @nullable */
+  careerTrack?: string | null;
+  /** @nullable */
+  seniority?: string | null;
+  /** @nullable */
+  targetRole?: string | null;
+  dailyMinutesTarget: number;
+  weeklyTasksTarget: number;
+  preferences: UserPreferences;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UpdateProfileRequest {
+  /**
+   * @maxLength 40
+   * @nullable
+   */
+  displayName?: string | null;
+  /** @nullable */
+  careerTrack?: string | null;
+  /** @nullable */
+  seniority?: string | null;
+  /**
+   * @maxLength 80
+   * @nullable
+   */
+  targetRole?: string | null;
+  /**
+   * @minimum 15
+   * @maximum 480
+   */
+  dailyMinutesTarget?: number;
+  /**
+   * @minimum 1
+   * @maximum 60
+   */
+  weeklyTasksTarget?: number;
+  preferences?: UserPreferences;
+}
+
+/**
+ * The task after the transition
+ */
+export type TaskTransitionResponse = Task;
+
+/**
+ * Missing or invalid credentials
+ */
+export type UnauthorizedResponse = Problem;
+
+/**
+ * No such resource for this user
+ */
+export type NotFoundResponse = Problem;
+
+/**
+ * The request conflicts with the resource's current state
+ */
+export type ConflictResponse = Problem;
+
+/**
+ * The request body failed validation
+ */
+export type UnprocessableEntityResponse = Problem;
+
+export type ListListsParams = {
+  includeArchived?: boolean;
+};
+
+export type ListTasksParams = {
+  listId?: string;
+  status?: TaskStatus;
+  priority?: PriorityLevel;
+};

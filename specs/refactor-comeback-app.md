@@ -1,6 +1,6 @@
 # Spec: Comeback App Refactor — Lists, Scoring, and Server-Backed Data
 
-**Status**: Proposed
+**Status**: Implemented
 **Created**: 2026-08-30
 **Supersedes**: `replit.md` — removed; its still-current content now lives in `CLAUDE.md` (see § 11)
 **Principles served**: I (Daily Consistency First), II (Routine Over Overwhelm), IV (Momentum Made Visible), V (Simplicity and Speed), VI (Privacy by Default)
@@ -618,15 +618,31 @@ by changing it.
 
 ## 9. Migration Plan
 
-| Phase | Work | Ships independently |
+| Phase | Work | Status |
 |---|---|---|
-| 0 | `CLAUDE.md` rewrite; `replit.md` removed — **done**, see § 11 | ✅ |
-| 1 | `comebackapp` schema, Drizzle models, task-type seeds | ✅ |
-| 2 | OpenAPI additions, Express routes, JWT middleware, scoring service | ✅ |
-| 3 | Codegen; Supabase auth in the app; sign-in route and guard | ✅ |
-| 4 | Domain restructure to the guide's layout — no behaviour change | ✅ |
-| 5 | Lists, priority, and score UI; React Query replaces the task slice | ✅ |
-| 6 | One-time upload of existing AsyncStorage tasks into a "My Tasks" list | ✅ |
+| 0 | `CLAUDE.md` rewrite; `replit.md` removed — see § 11 | done |
+| 1 | `comebackapp` schema, Drizzle models, task-type seeds | done |
+| 2 | OpenAPI additions, Express routes, JWT middleware, scoring service | done |
+| 3 | Codegen; Supabase auth in the app; sign-in route and guard | done |
+| 4 | Domain restructure to the guide's layout — no behaviour change | done |
+| 5 | Lists, priority, and score UI; React Query replaces the task slice | done |
+| 6 | One-time upload of existing AsyncStorage tasks into a "My Tasks" list | done |
+
+Deviations worth recording:
+
+- **Phase 4 was not a pure move.** Screens changed in the same pass because
+  Phase 5 replaced the task slice underneath them; splitting the two would have
+  meant landing a file move that did not compile.
+- **The dashboard route was unassigned** in § 8.1. It lives in `daily-tasks`,
+  the domain whose habit loop it exists to serve (Principle I).
+- **`user_profiles` was migrated too.** § 2 lists `daily-tasks`, `progress`,
+  `learning` and `notifications` as keeping local slices; `user-profile` is
+  absent from that list and § 5.2 defines the table, so the profile is now
+  server-backed. `onboardingComplete` stays local — it is a device fact.
+- **RLS policies and the `auth.users` trigger** live in
+  [`lib/db/src/policies.sql`](lib/db/src/policies.sql), applied by
+  `pnpm --filter @workspace/db run seed`, because `drizzle-kit push` reconciles
+  tables but not policies, triggers or functions.
 
 Phase 4 is a pure move — no logic changes — so it can be reviewed as a
 rename-only diff. Phase 6 runs once per device on first authenticated launch

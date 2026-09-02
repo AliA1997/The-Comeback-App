@@ -1,9 +1,12 @@
 /**
- * User Profile Domain — types
+ * User Profile Domain — types.
  *
- * Owns: account/profile info, goals, preferences, career track, seniority,
- * target role. All local-only for now (no backend auth).
+ * Owns: profile info, goals, preferences, career track, seniority, target
+ * role. The profile itself is server state (spec § 5.2); its shape comes from
+ * the generated schemas. The vocabulary below is client-side because the
+ * server stores these as free text.
  */
+export type { Profile, UserPreferences } from '@workspace/api-client-react';
 
 export type CareerTrack =
   | 'Frontend'
@@ -30,44 +33,16 @@ export type Seniority = 'Junior' | 'Mid' | 'Senior' | 'Staff' | 'Principal';
 
 export const SENIORITY_LEVELS: Seniority[] = ['Junior', 'Mid', 'Senior', 'Staff', 'Principal'];
 
-export interface UserGoals {
-  /** Target minutes of focused work per day */
-  dailyMinutesTarget: number;
-  /** Target tasks completed per week */
-  weeklyTasksTarget: number;
-}
+/**
+ * Mirrors the column defaults in `comebackapp.user_profiles`. Used before the
+ * profile query resolves so a toggle never renders as off just because the
+ * network is slow.
+ */
+export const DEFAULT_PREFERENCES = {
+  notificationsEnabled: true,
+  nudgesEnabled: true,
+  adsEnabled: true,
+} as const;
 
-export interface UserPreferences {
-  notificationsEnabled: boolean;
-  nudgesEnabled: boolean;
-  adsEnabled: boolean;
-}
-
-export interface UserProfile {
-  /** Display name */
-  name: string;
-  careerTrack: CareerTrack | null;
-  seniority: Seniority | null;
-  /** Free-text target role e.g. "Senior Frontend at FAANG" */
-  targetRole: string;
-  goals: UserGoals;
-  preferences: UserPreferences;
-  createdAt: number;
-}
-
-export const DEFAULT_PROFILE: UserProfile = {
-  name: '',
-  careerTrack: null,
-  seniority: null,
-  targetRole: '',
-  goals: {
-    dailyMinutesTarget: 90,
-    weeklyTasksTarget: 12,
-  },
-  preferences: {
-    notificationsEnabled: true,
-    nudgesEnabled: true,
-    adsEnabled: true,
-  },
-  createdAt: 0,
-};
+export const DEFAULT_DAILY_MINUTES_TARGET = 90;
+export const DEFAULT_WEEKLY_TASKS_TARGET = 12;

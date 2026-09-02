@@ -1,10 +1,11 @@
 /**
  * OnboardingWizard — first-launch wizard.
  *
- * Replaces the original `LandingOverlay`. Calls
- * `completeOnboarding({ name, careerTrack, seniority, targetRole })`
- * once the user finishes — the user-profile slice then flips
- * `onboardingComplete` and stores the seed profile.
+ * Writes the seed profile to the server and flips the device-local
+ * `onboardingComplete` flag. The flag is set even if the write fails: making
+ * someone repeat onboarding because the network dropped would be exactly the
+ * kind of punishment Principle III rules out. The profile screen can fill in
+ * anything that did not save.
  */
 import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -22,12 +23,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { useColors } from '@/shared/theme/useColors';
 import { useAppStore } from '@/shared/store/root';
+import { useUpdateProfile } from '../hooks/useProfile';
 import {
   CAREER_TRACKS,
   SENIORITY_LEVELS,
   type CareerTrack,
   type Seniority,
-} from '@/domains/user-profile/types';
+} from '../types';
 
 type Step = 0 | 1 | 2 | 3;
 
@@ -35,6 +37,7 @@ export function OnboardingWizard() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const completeOnboarding = useAppStore((s) => s.completeOnboarding);
+  const updateProfile = useUpdateProfile();
 
   const [step, setStep] = useState<Step>(0);
   const [name, setName] = useState('');
@@ -55,12 +58,15 @@ export function OnboardingWizard() {
       return;
     }
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    completeOnboarding({
-      name: name.trim() || 'Friend',
-      careerTrack: track,
-      seniority,
-      targetRole: targetRole.trim(),
+    updateProfile.mutate({
+      data: {
+        displayName: name.trim() || null,
+        careerTrack: track,
+        seniority,
+        targetRole: targetRole.trim() || null,
+      },
     });
+    completeOnboarding();
   };
 
   const back = () => {

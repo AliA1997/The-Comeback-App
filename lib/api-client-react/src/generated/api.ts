@@ -5,18 +5,43 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import type {
+  MutationFunction,
   QueryFunction,
   QueryKey,
+  UseMutationOptions,
+  UseMutationResult,
   UseQueryOptions,
   UseQueryResult,
 } from "@tanstack/react-query";
 
-import type { HealthStatus } from "./api.schemas";
+import type {
+  CompleteTaskRequest,
+  ConflictResponse,
+  CreateListRequest,
+  CreateTaskRequest,
+  DeleteListResult,
+  HealthStatus,
+  List,
+  ListListsParams,
+  ListTasksParams,
+  NotFoundResponse,
+  PauseTaskRequest,
+  Profile,
+  StopTaskRequest,
+  Task,
+  TaskTransitionResponse,
+  TaskType,
+  UnauthorizedResponse,
+  UnprocessableEntityResponse,
+  UpdateListRequest,
+  UpdateProfileRequest,
+  UpdateTaskRequest,
+} from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
-import type { ErrorType } from "../custom-fetch";
+import type { ErrorType, BodyType } from "../custom-fetch";
 
 type AwaitedInput<T> = PromiseLike<T> | T;
 
@@ -99,3 +124,1716 @@ export function useHealthCheck<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * Returns the authenticated user's lists in manual order.
+ * @summary List the user's lists
+ */
+export const getListListsUrl = (params?: ListListsParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/lists?${stringifiedParams}`
+    : `/api/lists`;
+};
+
+export const listLists = async (
+  params?: ListListsParams,
+  options?: RequestInit,
+): Promise<List[]> => {
+  return customFetch<List[]>(getListListsUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListListsQueryKey = (params?: ListListsParams) => {
+  return [`/api/lists`, ...(params ? [params] : [])] as const;
+};
+
+export const getListListsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listLists>>,
+  TError = ErrorType<UnauthorizedResponse>,
+>(
+  params?: ListListsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listLists>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListListsQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listLists>>> = ({
+    signal,
+  }) => listLists(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listLists>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListListsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listLists>>
+>;
+export type ListListsQueryError = ErrorType<UnauthorizedResponse>;
+
+/**
+ * @summary List the user's lists
+ */
+
+export function useListLists<
+  TData = Awaited<ReturnType<typeof listLists>>,
+  TError = ErrorType<UnauthorizedResponse>,
+>(
+  params?: ListListsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listLists>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListListsQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Create a list
+ */
+export const getCreateListUrl = () => {
+  return `/api/lists`;
+};
+
+export const createList = async (
+  createListRequest: CreateListRequest,
+  options?: RequestInit,
+): Promise<List> => {
+  return customFetch<List>(getCreateListUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createListRequest),
+  });
+};
+
+export const getCreateListMutationOptions = <
+  TError = ErrorType<
+    UnauthorizedResponse | ConflictResponse | UnprocessableEntityResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createList>>,
+    TError,
+    { data: BodyType<CreateListRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createList>>,
+  TError,
+  { data: BodyType<CreateListRequest> },
+  TContext
+> => {
+  const mutationKey = ["createList"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createList>>,
+    { data: BodyType<CreateListRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createList(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateListMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createList>>
+>;
+export type CreateListMutationBody = BodyType<CreateListRequest>;
+export type CreateListMutationError = ErrorType<
+  UnauthorizedResponse | ConflictResponse | UnprocessableEntityResponse
+>;
+
+/**
+ * @summary Create a list
+ */
+export const useCreateList = <
+  TError = ErrorType<
+    UnauthorizedResponse | ConflictResponse | UnprocessableEntityResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createList>>,
+    TError,
+    { data: BodyType<CreateListRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createList>>,
+  TError,
+  { data: BodyType<CreateListRequest> },
+  TContext
+> => {
+  return useMutation(getCreateListMutationOptions(options));
+};
+
+/**
+ * @summary Update a list
+ */
+export const getUpdateListUrl = (listId: string) => {
+  return `/api/lists/${listId}`;
+};
+
+export const updateList = async (
+  listId: string,
+  updateListRequest: UpdateListRequest,
+  options?: RequestInit,
+): Promise<List> => {
+  return customFetch<List>(getUpdateListUrl(listId), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updateListRequest),
+  });
+};
+
+export const getUpdateListMutationOptions = <
+  TError = ErrorType<
+    | UnauthorizedResponse
+    | NotFoundResponse
+    | ConflictResponse
+    | UnprocessableEntityResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateList>>,
+    TError,
+    { listId: string; data: BodyType<UpdateListRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateList>>,
+  TError,
+  { listId: string; data: BodyType<UpdateListRequest> },
+  TContext
+> => {
+  const mutationKey = ["updateList"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateList>>,
+    { listId: string; data: BodyType<UpdateListRequest> }
+  > = (props) => {
+    const { listId, data } = props ?? {};
+
+    return updateList(listId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateListMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateList>>
+>;
+export type UpdateListMutationBody = BodyType<UpdateListRequest>;
+export type UpdateListMutationError = ErrorType<
+  | UnauthorizedResponse
+  | NotFoundResponse
+  | ConflictResponse
+  | UnprocessableEntityResponse
+>;
+
+/**
+ * @summary Update a list
+ */
+export const useUpdateList = <
+  TError = ErrorType<
+    | UnauthorizedResponse
+    | NotFoundResponse
+    | ConflictResponse
+    | UnprocessableEntityResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateList>>,
+    TError,
+    { listId: string; data: BodyType<UpdateListRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateList>>,
+  TError,
+  { listId: string; data: BodyType<UpdateListRequest> },
+  TContext
+> => {
+  return useMutation(getUpdateListMutationOptions(options));
+};
+
+/**
+ * Soft-deletes the list by archiving it and cascades every task it holds to deleted. The response reports how many tasks were affected.
+ * @summary Delete a list
+ */
+export const getDeleteListUrl = (listId: string) => {
+  return `/api/lists/${listId}`;
+};
+
+export const deleteList = async (
+  listId: string,
+  options?: RequestInit,
+): Promise<DeleteListResult> => {
+  return customFetch<DeleteListResult>(getDeleteListUrl(listId), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteListMutationOptions = <
+  TError = ErrorType<UnauthorizedResponse | NotFoundResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteList>>,
+    TError,
+    { listId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteList>>,
+  TError,
+  { listId: string },
+  TContext
+> => {
+  const mutationKey = ["deleteList"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteList>>,
+    { listId: string }
+  > = (props) => {
+    const { listId } = props ?? {};
+
+    return deleteList(listId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteListMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteList>>
+>;
+
+export type DeleteListMutationError = ErrorType<
+  UnauthorizedResponse | NotFoundResponse
+>;
+
+/**
+ * @summary Delete a list
+ */
+export const useDeleteList = <
+  TError = ErrorType<UnauthorizedResponse | NotFoundResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteList>>,
+    TError,
+    { listId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteList>>,
+  TError,
+  { listId: string },
+  TContext
+> => {
+  return useMutation(getDeleteListMutationOptions(options));
+};
+
+/**
+ * Un-archives the list and restores the tasks that were deleted by the same cascade, matched on deletedAt.
+ * @summary Restore an archived list
+ */
+export const getRestoreListUrl = (listId: string) => {
+  return `/api/lists/${listId}/restore`;
+};
+
+export const restoreList = async (
+  listId: string,
+  options?: RequestInit,
+): Promise<List> => {
+  return customFetch<List>(getRestoreListUrl(listId), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getRestoreListMutationOptions = <
+  TError = ErrorType<
+    UnauthorizedResponse | NotFoundResponse | ConflictResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof restoreList>>,
+    TError,
+    { listId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof restoreList>>,
+  TError,
+  { listId: string },
+  TContext
+> => {
+  const mutationKey = ["restoreList"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof restoreList>>,
+    { listId: string }
+  > = (props) => {
+    const { listId } = props ?? {};
+
+    return restoreList(listId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RestoreListMutationResult = NonNullable<
+  Awaited<ReturnType<typeof restoreList>>
+>;
+
+export type RestoreListMutationError = ErrorType<
+  UnauthorizedResponse | NotFoundResponse | ConflictResponse
+>;
+
+/**
+ * @summary Restore an archived list
+ */
+export const useRestoreList = <
+  TError = ErrorType<
+    UnauthorizedResponse | NotFoundResponse | ConflictResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof restoreList>>,
+    TError,
+    { listId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof restoreList>>,
+  TError,
+  { listId: string },
+  TContext
+> => {
+  return useMutation(getRestoreListMutationOptions(options));
+};
+
+/**
+ * Returns the authenticated user's tasks. Deleted tasks are excluded unless status=deleted is requested explicitly.
+ * @summary List tasks
+ */
+export const getListTasksUrl = (params?: ListTasksParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/tasks?${stringifiedParams}`
+    : `/api/tasks`;
+};
+
+export const listTasks = async (
+  params?: ListTasksParams,
+  options?: RequestInit,
+): Promise<Task[]> => {
+  return customFetch<Task[]>(getListTasksUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListTasksQueryKey = (params?: ListTasksParams) => {
+  return [`/api/tasks`, ...(params ? [params] : [])] as const;
+};
+
+export const getListTasksQueryOptions = <
+  TData = Awaited<ReturnType<typeof listTasks>>,
+  TError = ErrorType<UnauthorizedResponse>,
+>(
+  params?: ListTasksParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listTasks>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListTasksQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listTasks>>> = ({
+    signal,
+  }) => listTasks(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listTasks>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListTasksQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listTasks>>
+>;
+export type ListTasksQueryError = ErrorType<UnauthorizedResponse>;
+
+/**
+ * @summary List tasks
+ */
+
+export function useListTasks<
+  TData = Awaited<ReturnType<typeof listTasks>>,
+  TError = ErrorType<UnauthorizedResponse>,
+>(
+  params?: ListTasksParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listTasks>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListTasksQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * The score is computed server-side from the task type and priority; a score supplied in the request body is ignored.
+ * @summary Create a task
+ */
+export const getCreateTaskUrl = () => {
+  return `/api/tasks`;
+};
+
+export const createTask = async (
+  createTaskRequest: CreateTaskRequest,
+  options?: RequestInit,
+): Promise<Task> => {
+  return customFetch<Task>(getCreateTaskUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createTaskRequest),
+  });
+};
+
+export const getCreateTaskMutationOptions = <
+  TError = ErrorType<
+    UnauthorizedResponse | NotFoundResponse | UnprocessableEntityResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createTask>>,
+    TError,
+    { data: BodyType<CreateTaskRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createTask>>,
+  TError,
+  { data: BodyType<CreateTaskRequest> },
+  TContext
+> => {
+  const mutationKey = ["createTask"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createTask>>,
+    { data: BodyType<CreateTaskRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createTask(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateTaskMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createTask>>
+>;
+export type CreateTaskMutationBody = BodyType<CreateTaskRequest>;
+export type CreateTaskMutationError = ErrorType<
+  UnauthorizedResponse | NotFoundResponse | UnprocessableEntityResponse
+>;
+
+/**
+ * @summary Create a task
+ */
+export const useCreateTask = <
+  TError = ErrorType<
+    UnauthorizedResponse | NotFoundResponse | UnprocessableEntityResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createTask>>,
+    TError,
+    { data: BodyType<CreateTaskRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createTask>>,
+  TError,
+  { data: BodyType<CreateTaskRequest> },
+  TContext
+> => {
+  return useMutation(getCreateTaskMutationOptions(options));
+};
+
+/**
+ * @summary Get a task
+ */
+export const getGetTaskUrl = (taskId: string) => {
+  return `/api/tasks/${taskId}`;
+};
+
+export const getTask = async (
+  taskId: string,
+  options?: RequestInit,
+): Promise<Task> => {
+  return customFetch<Task>(getGetTaskUrl(taskId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetTaskQueryKey = (taskId: string) => {
+  return [`/api/tasks/${taskId}`] as const;
+};
+
+export const getGetTaskQueryOptions = <
+  TData = Awaited<ReturnType<typeof getTask>>,
+  TError = ErrorType<UnauthorizedResponse | NotFoundResponse>,
+>(
+  taskId: string,
+  options?: {
+    query?: UseQueryOptions<Awaited<ReturnType<typeof getTask>>, TError, TData>;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetTaskQueryKey(taskId);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getTask>>> = ({
+    signal,
+  }) => getTask(taskId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!taskId,
+    ...queryOptions,
+  } as UseQueryOptions<Awaited<ReturnType<typeof getTask>>, TError, TData> & {
+    queryKey: QueryKey;
+  };
+};
+
+export type GetTaskQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getTask>>
+>;
+export type GetTaskQueryError = ErrorType<
+  UnauthorizedResponse | NotFoundResponse
+>;
+
+/**
+ * @summary Get a task
+ */
+
+export function useGetTask<
+  TData = Awaited<ReturnType<typeof getTask>>,
+  TError = ErrorType<UnauthorizedResponse | NotFoundResponse>,
+>(
+  taskId: string,
+  options?: {
+    query?: UseQueryOptions<Awaited<ReturnType<typeof getTask>>, TError, TData>;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetTaskQueryOptions(taskId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Changing taskTypeId or priority recomputes the score. Both are rejected on a completed task, whose score is a historical fact.
+ * @summary Update a task
+ */
+export const getUpdateTaskUrl = (taskId: string) => {
+  return `/api/tasks/${taskId}`;
+};
+
+export const updateTask = async (
+  taskId: string,
+  updateTaskRequest: UpdateTaskRequest,
+  options?: RequestInit,
+): Promise<Task> => {
+  return customFetch<Task>(getUpdateTaskUrl(taskId), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updateTaskRequest),
+  });
+};
+
+export const getUpdateTaskMutationOptions = <
+  TError = ErrorType<
+    | UnauthorizedResponse
+    | NotFoundResponse
+    | ConflictResponse
+    | UnprocessableEntityResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateTask>>,
+    TError,
+    { taskId: string; data: BodyType<UpdateTaskRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateTask>>,
+  TError,
+  { taskId: string; data: BodyType<UpdateTaskRequest> },
+  TContext
+> => {
+  const mutationKey = ["updateTask"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateTask>>,
+    { taskId: string; data: BodyType<UpdateTaskRequest> }
+  > = (props) => {
+    const { taskId, data } = props ?? {};
+
+    return updateTask(taskId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateTaskMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateTask>>
+>;
+export type UpdateTaskMutationBody = BodyType<UpdateTaskRequest>;
+export type UpdateTaskMutationError = ErrorType<
+  | UnauthorizedResponse
+  | NotFoundResponse
+  | ConflictResponse
+  | UnprocessableEntityResponse
+>;
+
+/**
+ * @summary Update a task
+ */
+export const useUpdateTask = <
+  TError = ErrorType<
+    | UnauthorizedResponse
+    | NotFoundResponse
+    | ConflictResponse
+    | UnprocessableEntityResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateTask>>,
+    TError,
+    { taskId: string; data: BodyType<UpdateTaskRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateTask>>,
+  TError,
+  { taskId: string; data: BodyType<UpdateTaskRequest> },
+  TContext
+> => {
+  return useMutation(getUpdateTaskMutationOptions(options));
+};
+
+/**
+ * Soft delete - the row is retained so the action can be undone.
+ * @summary Delete a task
+ */
+export const getDeleteTaskUrl = (taskId: string) => {
+  return `/api/tasks/${taskId}`;
+};
+
+export const deleteTask = async (
+  taskId: string,
+  options?: RequestInit,
+): Promise<Task> => {
+  return customFetch<Task>(getDeleteTaskUrl(taskId), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteTaskMutationOptions = <
+  TError = ErrorType<UnauthorizedResponse | NotFoundResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteTask>>,
+    TError,
+    { taskId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteTask>>,
+  TError,
+  { taskId: string },
+  TContext
+> => {
+  const mutationKey = ["deleteTask"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteTask>>,
+    { taskId: string }
+  > = (props) => {
+    const { taskId } = props ?? {};
+
+    return deleteTask(taskId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteTaskMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteTask>>
+>;
+
+export type DeleteTaskMutationError = ErrorType<
+  UnauthorizedResponse | NotFoundResponse
+>;
+
+/**
+ * @summary Delete a task
+ */
+export const useDeleteTask = <
+  TError = ErrorType<UnauthorizedResponse | NotFoundResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteTask>>,
+    TError,
+    { taskId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteTask>>,
+  TError,
+  { taskId: string },
+  TContext
+> => {
+  return useMutation(getDeleteTaskMutationOptions(options));
+};
+
+/**
+ * @summary Start a task
+ */
+export const getStartTaskUrl = (taskId: string) => {
+  return `/api/tasks/${taskId}/start`;
+};
+
+export const startTask = async (
+  taskId: string,
+  options?: RequestInit,
+): Promise<TaskTransitionResponse> => {
+  return customFetch<TaskTransitionResponse>(getStartTaskUrl(taskId), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getStartTaskMutationOptions = <
+  TError = ErrorType<
+    UnauthorizedResponse | NotFoundResponse | ConflictResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof startTask>>,
+    TError,
+    { taskId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof startTask>>,
+  TError,
+  { taskId: string },
+  TContext
+> => {
+  const mutationKey = ["startTask"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof startTask>>,
+    { taskId: string }
+  > = (props) => {
+    const { taskId } = props ?? {};
+
+    return startTask(taskId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type StartTaskMutationResult = NonNullable<
+  Awaited<ReturnType<typeof startTask>>
+>;
+
+export type StartTaskMutationError = ErrorType<
+  UnauthorizedResponse | NotFoundResponse | ConflictResponse
+>;
+
+/**
+ * @summary Start a task
+ */
+export const useStartTask = <
+  TError = ErrorType<
+    UnauthorizedResponse | NotFoundResponse | ConflictResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof startTask>>,
+    TError,
+    { taskId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof startTask>>,
+  TError,
+  { taskId: string },
+  TContext
+> => {
+  return useMutation(getStartTaskMutationOptions(options));
+};
+
+/**
+ * @summary Pause a running task
+ */
+export const getPauseTaskUrl = (taskId: string) => {
+  return `/api/tasks/${taskId}/pause`;
+};
+
+export const pauseTask = async (
+  taskId: string,
+  pauseTaskRequest?: PauseTaskRequest,
+  options?: RequestInit,
+): Promise<TaskTransitionResponse> => {
+  return customFetch<TaskTransitionResponse>(getPauseTaskUrl(taskId), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(pauseTaskRequest),
+  });
+};
+
+export const getPauseTaskMutationOptions = <
+  TError = ErrorType<
+    UnauthorizedResponse | NotFoundResponse | ConflictResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof pauseTask>>,
+    TError,
+    { taskId: string; data: BodyType<PauseTaskRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof pauseTask>>,
+  TError,
+  { taskId: string; data: BodyType<PauseTaskRequest> },
+  TContext
+> => {
+  const mutationKey = ["pauseTask"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof pauseTask>>,
+    { taskId: string; data: BodyType<PauseTaskRequest> }
+  > = (props) => {
+    const { taskId, data } = props ?? {};
+
+    return pauseTask(taskId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type PauseTaskMutationResult = NonNullable<
+  Awaited<ReturnType<typeof pauseTask>>
+>;
+export type PauseTaskMutationBody = BodyType<PauseTaskRequest>;
+export type PauseTaskMutationError = ErrorType<
+  UnauthorizedResponse | NotFoundResponse | ConflictResponse
+>;
+
+/**
+ * @summary Pause a running task
+ */
+export const usePauseTask = <
+  TError = ErrorType<
+    UnauthorizedResponse | NotFoundResponse | ConflictResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof pauseTask>>,
+    TError,
+    { taskId: string; data: BodyType<PauseTaskRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof pauseTask>>,
+  TError,
+  { taskId: string; data: BodyType<PauseTaskRequest> },
+  TContext
+> => {
+  return useMutation(getPauseTaskMutationOptions(options));
+};
+
+/**
+ * @summary Resume a paused task
+ */
+export const getResumeTaskUrl = (taskId: string) => {
+  return `/api/tasks/${taskId}/resume`;
+};
+
+export const resumeTask = async (
+  taskId: string,
+  options?: RequestInit,
+): Promise<TaskTransitionResponse> => {
+  return customFetch<TaskTransitionResponse>(getResumeTaskUrl(taskId), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getResumeTaskMutationOptions = <
+  TError = ErrorType<
+    UnauthorizedResponse | NotFoundResponse | ConflictResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof resumeTask>>,
+    TError,
+    { taskId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof resumeTask>>,
+  TError,
+  { taskId: string },
+  TContext
+> => {
+  const mutationKey = ["resumeTask"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof resumeTask>>,
+    { taskId: string }
+  > = (props) => {
+    const { taskId } = props ?? {};
+
+    return resumeTask(taskId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ResumeTaskMutationResult = NonNullable<
+  Awaited<ReturnType<typeof resumeTask>>
+>;
+
+export type ResumeTaskMutationError = ErrorType<
+  UnauthorizedResponse | NotFoundResponse | ConflictResponse
+>;
+
+/**
+ * @summary Resume a paused task
+ */
+export const useResumeTask = <
+  TError = ErrorType<
+    UnauthorizedResponse | NotFoundResponse | ConflictResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof resumeTask>>,
+    TError,
+    { taskId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof resumeTask>>,
+  TError,
+  { taskId: string },
+  TContext
+> => {
+  return useMutation(getResumeTaskMutationOptions(options));
+};
+
+/**
+ * @summary Stop a task without completing it
+ */
+export const getStopTaskUrl = (taskId: string) => {
+  return `/api/tasks/${taskId}/stop`;
+};
+
+export const stopTask = async (
+  taskId: string,
+  stopTaskRequest?: StopTaskRequest,
+  options?: RequestInit,
+): Promise<TaskTransitionResponse> => {
+  return customFetch<TaskTransitionResponse>(getStopTaskUrl(taskId), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(stopTaskRequest),
+  });
+};
+
+export const getStopTaskMutationOptions = <
+  TError = ErrorType<
+    UnauthorizedResponse | NotFoundResponse | ConflictResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof stopTask>>,
+    TError,
+    { taskId: string; data: BodyType<StopTaskRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof stopTask>>,
+  TError,
+  { taskId: string; data: BodyType<StopTaskRequest> },
+  TContext
+> => {
+  const mutationKey = ["stopTask"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof stopTask>>,
+    { taskId: string; data: BodyType<StopTaskRequest> }
+  > = (props) => {
+    const { taskId, data } = props ?? {};
+
+    return stopTask(taskId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type StopTaskMutationResult = NonNullable<
+  Awaited<ReturnType<typeof stopTask>>
+>;
+export type StopTaskMutationBody = BodyType<StopTaskRequest>;
+export type StopTaskMutationError = ErrorType<
+  UnauthorizedResponse | NotFoundResponse | ConflictResponse
+>;
+
+/**
+ * @summary Stop a task without completing it
+ */
+export const useStopTask = <
+  TError = ErrorType<
+    UnauthorizedResponse | NotFoundResponse | ConflictResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof stopTask>>,
+    TError,
+    { taskId: string; data: BodyType<StopTaskRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof stopTask>>,
+  TError,
+  { taskId: string; data: BodyType<StopTaskRequest> },
+  TContext
+> => {
+  return useMutation(getStopTaskMutationOptions(options));
+};
+
+/**
+ * Records completedAt and computes actualDurationMinutes with all paused time excluded.
+ * @summary Complete a task
+ */
+export const getCompleteTaskUrl = (taskId: string) => {
+  return `/api/tasks/${taskId}/complete`;
+};
+
+export const completeTask = async (
+  taskId: string,
+  completeTaskRequest?: CompleteTaskRequest,
+  options?: RequestInit,
+): Promise<TaskTransitionResponse> => {
+  return customFetch<TaskTransitionResponse>(getCompleteTaskUrl(taskId), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(completeTaskRequest),
+  });
+};
+
+export const getCompleteTaskMutationOptions = <
+  TError = ErrorType<
+    UnauthorizedResponse | NotFoundResponse | ConflictResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof completeTask>>,
+    TError,
+    { taskId: string; data: BodyType<CompleteTaskRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof completeTask>>,
+  TError,
+  { taskId: string; data: BodyType<CompleteTaskRequest> },
+  TContext
+> => {
+  const mutationKey = ["completeTask"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof completeTask>>,
+    { taskId: string; data: BodyType<CompleteTaskRequest> }
+  > = (props) => {
+    const { taskId, data } = props ?? {};
+
+    return completeTask(taskId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CompleteTaskMutationResult = NonNullable<
+  Awaited<ReturnType<typeof completeTask>>
+>;
+export type CompleteTaskMutationBody = BodyType<CompleteTaskRequest>;
+export type CompleteTaskMutationError = ErrorType<
+  UnauthorizedResponse | NotFoundResponse | ConflictResponse
+>;
+
+/**
+ * @summary Complete a task
+ */
+export const useCompleteTask = <
+  TError = ErrorType<
+    UnauthorizedResponse | NotFoundResponse | ConflictResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof completeTask>>,
+    TError,
+    { taskId: string; data: BodyType<CompleteTaskRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof completeTask>>,
+  TError,
+  { taskId: string; data: BodyType<CompleteTaskRequest> },
+  TContext
+> => {
+  return useMutation(getCompleteTaskMutationOptions(options));
+};
+
+/**
+ * The score is recomputed from the task's current type and priority.
+ * @summary Restore a deleted task
+ */
+export const getRestoreTaskUrl = (taskId: string) => {
+  return `/api/tasks/${taskId}/restore`;
+};
+
+export const restoreTask = async (
+  taskId: string,
+  options?: RequestInit,
+): Promise<TaskTransitionResponse> => {
+  return customFetch<TaskTransitionResponse>(getRestoreTaskUrl(taskId), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getRestoreTaskMutationOptions = <
+  TError = ErrorType<
+    UnauthorizedResponse | NotFoundResponse | ConflictResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof restoreTask>>,
+    TError,
+    { taskId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof restoreTask>>,
+  TError,
+  { taskId: string },
+  TContext
+> => {
+  const mutationKey = ["restoreTask"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof restoreTask>>,
+    { taskId: string }
+  > = (props) => {
+    const { taskId } = props ?? {};
+
+    return restoreTask(taskId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RestoreTaskMutationResult = NonNullable<
+  Awaited<ReturnType<typeof restoreTask>>
+>;
+
+export type RestoreTaskMutationError = ErrorType<
+  UnauthorizedResponse | NotFoundResponse | ConflictResponse
+>;
+
+/**
+ * @summary Restore a deleted task
+ */
+export const useRestoreTask = <
+  TError = ErrorType<
+    UnauthorizedResponse | NotFoundResponse | ConflictResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof restoreTask>>,
+    TError,
+    { taskId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof restoreTask>>,
+  TError,
+  { taskId: string },
+  TContext
+> => {
+  return useMutation(getRestoreTaskMutationOptions(options));
+};
+
+/**
+ * Static seed data - safe to cache indefinitely.
+ * @summary List task types
+ */
+export const getListTaskTypesUrl = () => {
+  return `/api/task-types`;
+};
+
+export const listTaskTypes = async (
+  options?: RequestInit,
+): Promise<TaskType[]> => {
+  return customFetch<TaskType[]>(getListTaskTypesUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListTaskTypesQueryKey = () => {
+  return [`/api/task-types`] as const;
+};
+
+export const getListTaskTypesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listTaskTypes>>,
+  TError = ErrorType<UnauthorizedResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listTaskTypes>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListTaskTypesQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listTaskTypes>>> = ({
+    signal,
+  }) => listTaskTypes({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listTaskTypes>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListTaskTypesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listTaskTypes>>
+>;
+export type ListTaskTypesQueryError = ErrorType<UnauthorizedResponse>;
+
+/**
+ * @summary List task types
+ */
+
+export function useListTaskTypes<
+  TData = Awaited<ReturnType<typeof listTaskTypes>>,
+  TError = ErrorType<UnauthorizedResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listTaskTypes>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListTaskTypesQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Upserts the profile row if the auth.users trigger did not create one, so a missed trigger never blocks sign-in.
+ * @summary Get the authenticated user's profile
+ */
+export const getGetProfileUrl = () => {
+  return `/api/me/profile`;
+};
+
+export const getProfile = async (options?: RequestInit): Promise<Profile> => {
+  return customFetch<Profile>(getGetProfileUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetProfileQueryKey = () => {
+  return [`/api/me/profile`] as const;
+};
+
+export const getGetProfileQueryOptions = <
+  TData = Awaited<ReturnType<typeof getProfile>>,
+  TError = ErrorType<UnauthorizedResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getProfile>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetProfileQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getProfile>>> = ({
+    signal,
+  }) => getProfile({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getProfile>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetProfileQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getProfile>>
+>;
+export type GetProfileQueryError = ErrorType<UnauthorizedResponse>;
+
+/**
+ * @summary Get the authenticated user's profile
+ */
+
+export function useGetProfile<
+  TData = Awaited<ReturnType<typeof getProfile>>,
+  TError = ErrorType<UnauthorizedResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getProfile>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetProfileQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Update the authenticated user's profile
+ */
+export const getUpdateProfileUrl = () => {
+  return `/api/me/profile`;
+};
+
+export const updateProfile = async (
+  updateProfileRequest: UpdateProfileRequest,
+  options?: RequestInit,
+): Promise<Profile> => {
+  return customFetch<Profile>(getUpdateProfileUrl(), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updateProfileRequest),
+  });
+};
+
+export const getUpdateProfileMutationOptions = <
+  TError = ErrorType<UnauthorizedResponse | UnprocessableEntityResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateProfile>>,
+    TError,
+    { data: BodyType<UpdateProfileRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateProfile>>,
+  TError,
+  { data: BodyType<UpdateProfileRequest> },
+  TContext
+> => {
+  const mutationKey = ["updateProfile"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateProfile>>,
+    { data: BodyType<UpdateProfileRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return updateProfile(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateProfileMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateProfile>>
+>;
+export type UpdateProfileMutationBody = BodyType<UpdateProfileRequest>;
+export type UpdateProfileMutationError = ErrorType<
+  UnauthorizedResponse | UnprocessableEntityResponse
+>;
+
+/**
+ * @summary Update the authenticated user's profile
+ */
+export const useUpdateProfile = <
+  TError = ErrorType<UnauthorizedResponse | UnprocessableEntityResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateProfile>>,
+    TError,
+    { data: BodyType<UpdateProfileRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateProfile>>,
+  TError,
+  { data: BodyType<UpdateProfileRequest> },
+  TContext
+> => {
+  return useMutation(getUpdateProfileMutationOptions(options));
+};

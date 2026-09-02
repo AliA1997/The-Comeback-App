@@ -2,6 +2,9 @@ export * from './types';
 export * from './store';
 export * from './selectors';
 export { SuggestionCard } from './components/SuggestionCard';
+export { InsightsScreen } from './features/InsightsScreen';
+export { HistoryScreen } from './features/HistoryScreen';
+export { AchievementsScreen } from './features/AchievementsScreen';
 export { computeStreak } from './services/StreakEngine';
 export {
   computeTodayStats,

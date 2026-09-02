@@ -14,3 +14,731 @@ import * as zod from "zod";
 export const HealthCheckResponse = zod.object({
   status: zod.string(),
 });
+
+/**
+ * Returns the authenticated user's lists in manual order.
+ * @summary List the user's lists
+ */
+export const listListsQueryIncludeArchivedDefault = false;
+
+export const ListListsQueryParams = zod.object({
+  includeArchived: zod.coerce
+    .boolean()
+    .default(listListsQueryIncludeArchivedDefault),
+});
+
+export const ListListsResponseItem = zod.object({
+  id: zod.string().uuid(),
+  name: zod.string(),
+  position: zod.number(),
+  isArchived: zod.boolean(),
+  taskCount: zod.number().describe("Number of non-deleted tasks in the list."),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+export const ListListsResponse = zod.array(ListListsResponseItem);
+
+/**
+ * @summary Create a list
+ */
+export const createListBodyNameMax = 60;
+
+export const CreateListBody = zod.object({
+  name: zod.string().min(1).max(createListBodyNameMax),
+  position: zod.number().optional(),
+});
+
+/**
+ * @summary Update a list
+ */
+export const UpdateListParams = zod.object({
+  listId: zod.coerce.string().uuid(),
+});
+
+export const updateListBodyNameMax = 60;
+
+export const UpdateListBody = zod.object({
+  name: zod.string().min(1).max(updateListBodyNameMax).optional(),
+  position: zod.number().optional(),
+  isArchived: zod.boolean().optional(),
+});
+
+export const UpdateListResponse = zod.object({
+  id: zod.string().uuid(),
+  name: zod.string(),
+  position: zod.number(),
+  isArchived: zod.boolean(),
+  taskCount: zod.number().describe("Number of non-deleted tasks in the list."),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
+ * Soft-deletes the list by archiving it and cascades every task it holds to deleted. The response reports how many tasks were affected.
+ * @summary Delete a list
+ */
+export const DeleteListParams = zod.object({
+  listId: zod.coerce.string().uuid(),
+});
+
+export const DeleteListResponse = zod.object({
+  list: zod.object({
+    id: zod.string().uuid(),
+    name: zod.string(),
+    position: zod.number(),
+    isArchived: zod.boolean(),
+    taskCount: zod
+      .number()
+      .describe("Number of non-deleted tasks in the list."),
+    createdAt: zod.coerce.date(),
+    updatedAt: zod.coerce.date(),
+  }),
+  deletedTaskCount: zod.number(),
+});
+
+/**
+ * Un-archives the list and restores the tasks that were deleted by the same cascade, matched on deletedAt.
+ * @summary Restore an archived list
+ */
+export const RestoreListParams = zod.object({
+  listId: zod.coerce.string().uuid(),
+});
+
+export const RestoreListResponse = zod.object({
+  id: zod.string().uuid(),
+  name: zod.string(),
+  position: zod.number(),
+  isArchived: zod.boolean(),
+  taskCount: zod.number().describe("Number of non-deleted tasks in the list."),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
+ * Returns the authenticated user's tasks. Deleted tasks are excluded unless status=deleted is requested explicitly.
+ * @summary List tasks
+ */
+export const ListTasksQueryParams = zod.object({
+  listId: zod.coerce.string().uuid().optional(),
+  status: zod
+    .enum(["pending", "in_progress", "paused", "completed", "deleted"])
+    .optional(),
+  priority: zod.enum(["low", "medium", "high", "urgent"]).optional(),
+});
+
+export const ListTasksResponseItem = zod.object({
+  id: zod.string().uuid(),
+  listId: zod.string().uuid(),
+  taskTypeId: zod.string().uuid(),
+  taskType: zod.object({
+    id: zod.string().uuid(),
+    type: zod.string(),
+    label: zod.string(),
+    score: zod.number(),
+    isSystem: zod.boolean(),
+  }),
+  title: zod.string(),
+  description: zod.string(),
+  priority: zod.enum(["low", "medium", "high", "urgent"]),
+  score: zod
+    .number()
+    .describe("Server-computed snapshot; clients never send this."),
+  status: zod.enum([
+    "pending",
+    "in_progress",
+    "paused",
+    "completed",
+    "deleted",
+  ]),
+  estimatedDurationMinutes: zod.number(),
+  actualDurationMinutes: zod.number().nullish(),
+  savedRemainingSeconds: zod.number().nullish(),
+  totalPausedMs: zod.number(),
+  startedAt: zod.coerce.date().nullish(),
+  pausedAt: zod.coerce.date().nullish(),
+  completedAt: zod.coerce.date().nullish(),
+  deletedAt: zod.coerce.date().nullish(),
+  dueDate: zod.string().nullish(),
+  position: zod.number(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+export const ListTasksResponse = zod.array(ListTasksResponseItem);
+
+/**
+ * The score is computed server-side from the task type and priority; a score supplied in the request body is ignored.
+ * @summary Create a task
+ */
+export const createTaskBodyTitleMax = 100;
+
+export const createTaskBodyDescriptionMax = 500;
+
+export const createTaskBodyEstimatedDurationMinutesMax = 480;
+
+export const CreateTaskBody = zod.object({
+  listId: zod.string().uuid(),
+  taskTypeId: zod.string().uuid(),
+  title: zod.string().min(1).max(createTaskBodyTitleMax),
+  description: zod.string().max(createTaskBodyDescriptionMax).optional(),
+  priority: zod.enum(["low", "medium", "high", "urgent"]).optional(),
+  estimatedDurationMinutes: zod
+    .number()
+    .min(1)
+    .max(createTaskBodyEstimatedDurationMinutesMax)
+    .optional(),
+  dueDate: zod.string().nullish(),
+  position: zod.number().optional(),
+});
+
+/**
+ * @summary Get a task
+ */
+export const GetTaskParams = zod.object({
+  taskId: zod.coerce.string().uuid(),
+});
+
+export const GetTaskResponse = zod.object({
+  id: zod.string().uuid(),
+  listId: zod.string().uuid(),
+  taskTypeId: zod.string().uuid(),
+  taskType: zod.object({
+    id: zod.string().uuid(),
+    type: zod.string(),
+    label: zod.string(),
+    score: zod.number(),
+    isSystem: zod.boolean(),
+  }),
+  title: zod.string(),
+  description: zod.string(),
+  priority: zod.enum(["low", "medium", "high", "urgent"]),
+  score: zod
+    .number()
+    .describe("Server-computed snapshot; clients never send this."),
+  status: zod.enum([
+    "pending",
+    "in_progress",
+    "paused",
+    "completed",
+    "deleted",
+  ]),
+  estimatedDurationMinutes: zod.number(),
+  actualDurationMinutes: zod.number().nullish(),
+  savedRemainingSeconds: zod.number().nullish(),
+  totalPausedMs: zod.number(),
+  startedAt: zod.coerce.date().nullish(),
+  pausedAt: zod.coerce.date().nullish(),
+  completedAt: zod.coerce.date().nullish(),
+  deletedAt: zod.coerce.date().nullish(),
+  dueDate: zod.string().nullish(),
+  position: zod.number(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
+ * Changing taskTypeId or priority recomputes the score. Both are rejected on a completed task, whose score is a historical fact.
+ * @summary Update a task
+ */
+export const UpdateTaskParams = zod.object({
+  taskId: zod.coerce.string().uuid(),
+});
+
+export const updateTaskBodyTitleMax = 100;
+
+export const updateTaskBodyDescriptionMax = 500;
+
+export const updateTaskBodyEstimatedDurationMinutesMax = 480;
+
+export const UpdateTaskBody = zod.object({
+  listId: zod.string().uuid().optional(),
+  taskTypeId: zod.string().uuid().optional(),
+  title: zod.string().min(1).max(updateTaskBodyTitleMax).optional(),
+  description: zod.string().max(updateTaskBodyDescriptionMax).optional(),
+  priority: zod.enum(["low", "medium", "high", "urgent"]).optional(),
+  estimatedDurationMinutes: zod
+    .number()
+    .min(1)
+    .max(updateTaskBodyEstimatedDurationMinutesMax)
+    .optional(),
+  dueDate: zod.string().nullish(),
+  position: zod.number().optional(),
+});
+
+export const UpdateTaskResponse = zod.object({
+  id: zod.string().uuid(),
+  listId: zod.string().uuid(),
+  taskTypeId: zod.string().uuid(),
+  taskType: zod.object({
+    id: zod.string().uuid(),
+    type: zod.string(),
+    label: zod.string(),
+    score: zod.number(),
+    isSystem: zod.boolean(),
+  }),
+  title: zod.string(),
+  description: zod.string(),
+  priority: zod.enum(["low", "medium", "high", "urgent"]),
+  score: zod
+    .number()
+    .describe("Server-computed snapshot; clients never send this."),
+  status: zod.enum([
+    "pending",
+    "in_progress",
+    "paused",
+    "completed",
+    "deleted",
+  ]),
+  estimatedDurationMinutes: zod.number(),
+  actualDurationMinutes: zod.number().nullish(),
+  savedRemainingSeconds: zod.number().nullish(),
+  totalPausedMs: zod.number(),
+  startedAt: zod.coerce.date().nullish(),
+  pausedAt: zod.coerce.date().nullish(),
+  completedAt: zod.coerce.date().nullish(),
+  deletedAt: zod.coerce.date().nullish(),
+  dueDate: zod.string().nullish(),
+  position: zod.number(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
+ * Soft delete - the row is retained so the action can be undone.
+ * @summary Delete a task
+ */
+export const DeleteTaskParams = zod.object({
+  taskId: zod.coerce.string().uuid(),
+});
+
+export const DeleteTaskResponse = zod.object({
+  id: zod.string().uuid(),
+  listId: zod.string().uuid(),
+  taskTypeId: zod.string().uuid(),
+  taskType: zod.object({
+    id: zod.string().uuid(),
+    type: zod.string(),
+    label: zod.string(),
+    score: zod.number(),
+    isSystem: zod.boolean(),
+  }),
+  title: zod.string(),
+  description: zod.string(),
+  priority: zod.enum(["low", "medium", "high", "urgent"]),
+  score: zod
+    .number()
+    .describe("Server-computed snapshot; clients never send this."),
+  status: zod.enum([
+    "pending",
+    "in_progress",
+    "paused",
+    "completed",
+    "deleted",
+  ]),
+  estimatedDurationMinutes: zod.number(),
+  actualDurationMinutes: zod.number().nullish(),
+  savedRemainingSeconds: zod.number().nullish(),
+  totalPausedMs: zod.number(),
+  startedAt: zod.coerce.date().nullish(),
+  pausedAt: zod.coerce.date().nullish(),
+  completedAt: zod.coerce.date().nullish(),
+  deletedAt: zod.coerce.date().nullish(),
+  dueDate: zod.string().nullish(),
+  position: zod.number(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Start a task
+ */
+export const StartTaskParams = zod.object({
+  taskId: zod.coerce.string().uuid(),
+});
+
+export const StartTaskResponse = zod.object({
+  id: zod.string().uuid(),
+  listId: zod.string().uuid(),
+  taskTypeId: zod.string().uuid(),
+  taskType: zod.object({
+    id: zod.string().uuid(),
+    type: zod.string(),
+    label: zod.string(),
+    score: zod.number(),
+    isSystem: zod.boolean(),
+  }),
+  title: zod.string(),
+  description: zod.string(),
+  priority: zod.enum(["low", "medium", "high", "urgent"]),
+  score: zod
+    .number()
+    .describe("Server-computed snapshot; clients never send this."),
+  status: zod.enum([
+    "pending",
+    "in_progress",
+    "paused",
+    "completed",
+    "deleted",
+  ]),
+  estimatedDurationMinutes: zod.number(),
+  actualDurationMinutes: zod.number().nullish(),
+  savedRemainingSeconds: zod.number().nullish(),
+  totalPausedMs: zod.number(),
+  startedAt: zod.coerce.date().nullish(),
+  pausedAt: zod.coerce.date().nullish(),
+  completedAt: zod.coerce.date().nullish(),
+  deletedAt: zod.coerce.date().nullish(),
+  dueDate: zod.string().nullish(),
+  position: zod.number(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Pause a running task
+ */
+export const PauseTaskParams = zod.object({
+  taskId: zod.coerce.string().uuid(),
+});
+
+export const pauseTaskBodySavedRemainingSecondsMin = 0;
+
+export const PauseTaskBody = zod.object({
+  savedRemainingSeconds: zod
+    .number()
+    .min(pauseTaskBodySavedRemainingSecondsMin)
+    .optional(),
+});
+
+export const PauseTaskResponse = zod.object({
+  id: zod.string().uuid(),
+  listId: zod.string().uuid(),
+  taskTypeId: zod.string().uuid(),
+  taskType: zod.object({
+    id: zod.string().uuid(),
+    type: zod.string(),
+    label: zod.string(),
+    score: zod.number(),
+    isSystem: zod.boolean(),
+  }),
+  title: zod.string(),
+  description: zod.string(),
+  priority: zod.enum(["low", "medium", "high", "urgent"]),
+  score: zod
+    .number()
+    .describe("Server-computed snapshot; clients never send this."),
+  status: zod.enum([
+    "pending",
+    "in_progress",
+    "paused",
+    "completed",
+    "deleted",
+  ]),
+  estimatedDurationMinutes: zod.number(),
+  actualDurationMinutes: zod.number().nullish(),
+  savedRemainingSeconds: zod.number().nullish(),
+  totalPausedMs: zod.number(),
+  startedAt: zod.coerce.date().nullish(),
+  pausedAt: zod.coerce.date().nullish(),
+  completedAt: zod.coerce.date().nullish(),
+  deletedAt: zod.coerce.date().nullish(),
+  dueDate: zod.string().nullish(),
+  position: zod.number(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Resume a paused task
+ */
+export const ResumeTaskParams = zod.object({
+  taskId: zod.coerce.string().uuid(),
+});
+
+export const ResumeTaskResponse = zod.object({
+  id: zod.string().uuid(),
+  listId: zod.string().uuid(),
+  taskTypeId: zod.string().uuid(),
+  taskType: zod.object({
+    id: zod.string().uuid(),
+    type: zod.string(),
+    label: zod.string(),
+    score: zod.number(),
+    isSystem: zod.boolean(),
+  }),
+  title: zod.string(),
+  description: zod.string(),
+  priority: zod.enum(["low", "medium", "high", "urgent"]),
+  score: zod
+    .number()
+    .describe("Server-computed snapshot; clients never send this."),
+  status: zod.enum([
+    "pending",
+    "in_progress",
+    "paused",
+    "completed",
+    "deleted",
+  ]),
+  estimatedDurationMinutes: zod.number(),
+  actualDurationMinutes: zod.number().nullish(),
+  savedRemainingSeconds: zod.number().nullish(),
+  totalPausedMs: zod.number(),
+  startedAt: zod.coerce.date().nullish(),
+  pausedAt: zod.coerce.date().nullish(),
+  completedAt: zod.coerce.date().nullish(),
+  deletedAt: zod.coerce.date().nullish(),
+  dueDate: zod.string().nullish(),
+  position: zod.number(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Stop a task without completing it
+ */
+export const StopTaskParams = zod.object({
+  taskId: zod.coerce.string().uuid(),
+});
+
+export const stopTaskBodySavedRemainingSecondsMin = 0;
+
+export const StopTaskBody = zod.object({
+  savedRemainingSeconds: zod
+    .number()
+    .min(stopTaskBodySavedRemainingSecondsMin)
+    .optional(),
+});
+
+export const StopTaskResponse = zod.object({
+  id: zod.string().uuid(),
+  listId: zod.string().uuid(),
+  taskTypeId: zod.string().uuid(),
+  taskType: zod.object({
+    id: zod.string().uuid(),
+    type: zod.string(),
+    label: zod.string(),
+    score: zod.number(),
+    isSystem: zod.boolean(),
+  }),
+  title: zod.string(),
+  description: zod.string(),
+  priority: zod.enum(["low", "medium", "high", "urgent"]),
+  score: zod
+    .number()
+    .describe("Server-computed snapshot; clients never send this."),
+  status: zod.enum([
+    "pending",
+    "in_progress",
+    "paused",
+    "completed",
+    "deleted",
+  ]),
+  estimatedDurationMinutes: zod.number(),
+  actualDurationMinutes: zod.number().nullish(),
+  savedRemainingSeconds: zod.number().nullish(),
+  totalPausedMs: zod.number(),
+  startedAt: zod.coerce.date().nullish(),
+  pausedAt: zod.coerce.date().nullish(),
+  completedAt: zod.coerce.date().nullish(),
+  deletedAt: zod.coerce.date().nullish(),
+  dueDate: zod.string().nullish(),
+  position: zod.number(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
+ * Records completedAt and computes actualDurationMinutes with all paused time excluded.
+ * @summary Complete a task
+ */
+export const CompleteTaskParams = zod.object({
+  taskId: zod.coerce.string().uuid(),
+});
+
+export const completeTaskBodySavedRemainingSecondsMin = 0;
+
+export const completeTaskBodyTotalPausedMsMin = 0;
+
+export const CompleteTaskBody = zod.object({
+  savedRemainingSeconds: zod
+    .number()
+    .min(completeTaskBodySavedRemainingSecondsMin)
+    .optional(),
+  totalPausedMs: zod
+    .number()
+    .min(completeTaskBodyTotalPausedMsMin)
+    .optional()
+    .describe(
+      "Pause time accumulated on the device but not yet synced. Added to the stored total before the focused duration is computed.",
+    ),
+});
+
+export const CompleteTaskResponse = zod.object({
+  id: zod.string().uuid(),
+  listId: zod.string().uuid(),
+  taskTypeId: zod.string().uuid(),
+  taskType: zod.object({
+    id: zod.string().uuid(),
+    type: zod.string(),
+    label: zod.string(),
+    score: zod.number(),
+    isSystem: zod.boolean(),
+  }),
+  title: zod.string(),
+  description: zod.string(),
+  priority: zod.enum(["low", "medium", "high", "urgent"]),
+  score: zod
+    .number()
+    .describe("Server-computed snapshot; clients never send this."),
+  status: zod.enum([
+    "pending",
+    "in_progress",
+    "paused",
+    "completed",
+    "deleted",
+  ]),
+  estimatedDurationMinutes: zod.number(),
+  actualDurationMinutes: zod.number().nullish(),
+  savedRemainingSeconds: zod.number().nullish(),
+  totalPausedMs: zod.number(),
+  startedAt: zod.coerce.date().nullish(),
+  pausedAt: zod.coerce.date().nullish(),
+  completedAt: zod.coerce.date().nullish(),
+  deletedAt: zod.coerce.date().nullish(),
+  dueDate: zod.string().nullish(),
+  position: zod.number(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
+ * The score is recomputed from the task's current type and priority.
+ * @summary Restore a deleted task
+ */
+export const RestoreTaskParams = zod.object({
+  taskId: zod.coerce.string().uuid(),
+});
+
+export const RestoreTaskResponse = zod.object({
+  id: zod.string().uuid(),
+  listId: zod.string().uuid(),
+  taskTypeId: zod.string().uuid(),
+  taskType: zod.object({
+    id: zod.string().uuid(),
+    type: zod.string(),
+    label: zod.string(),
+    score: zod.number(),
+    isSystem: zod.boolean(),
+  }),
+  title: zod.string(),
+  description: zod.string(),
+  priority: zod.enum(["low", "medium", "high", "urgent"]),
+  score: zod
+    .number()
+    .describe("Server-computed snapshot; clients never send this."),
+  status: zod.enum([
+    "pending",
+    "in_progress",
+    "paused",
+    "completed",
+    "deleted",
+  ]),
+  estimatedDurationMinutes: zod.number(),
+  actualDurationMinutes: zod.number().nullish(),
+  savedRemainingSeconds: zod.number().nullish(),
+  totalPausedMs: zod.number(),
+  startedAt: zod.coerce.date().nullish(),
+  pausedAt: zod.coerce.date().nullish(),
+  completedAt: zod.coerce.date().nullish(),
+  deletedAt: zod.coerce.date().nullish(),
+  dueDate: zod.string().nullish(),
+  position: zod.number(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
+ * Static seed data - safe to cache indefinitely.
+ * @summary List task types
+ */
+export const ListTaskTypesResponseItem = zod.object({
+  id: zod.string().uuid(),
+  type: zod.string(),
+  label: zod.string(),
+  score: zod.number(),
+  isSystem: zod.boolean(),
+});
+export const ListTaskTypesResponse = zod.array(ListTaskTypesResponseItem);
+
+/**
+ * Upserts the profile row if the auth.users trigger did not create one, so a missed trigger never blocks sign-in.
+ * @summary Get the authenticated user's profile
+ */
+export const GetProfileResponse = zod.object({
+  id: zod.string().uuid(),
+  displayName: zod.string().nullish(),
+  careerTrack: zod.string().nullish(),
+  seniority: zod.string().nullish(),
+  targetRole: zod.string().nullish(),
+  dailyMinutesTarget: zod.number(),
+  weeklyTasksTarget: zod.number(),
+  preferences: zod.object({
+    notificationsEnabled: zod.boolean(),
+    nudgesEnabled: zod.boolean(),
+    adsEnabled: zod.boolean(),
+  }),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Update the authenticated user's profile
+ */
+export const updateProfileBodyDisplayNameMax = 40;
+
+export const updateProfileBodyTargetRoleMax = 80;
+
+export const updateProfileBodyDailyMinutesTargetMin = 15;
+export const updateProfileBodyDailyMinutesTargetMax = 480;
+
+export const updateProfileBodyWeeklyTasksTargetMax = 60;
+
+export const UpdateProfileBody = zod.object({
+  displayName: zod.string().max(updateProfileBodyDisplayNameMax).nullish(),
+  careerTrack: zod.string().nullish(),
+  seniority: zod.string().nullish(),
+  targetRole: zod.string().max(updateProfileBodyTargetRoleMax).nullish(),
+  dailyMinutesTarget: zod
+    .number()
+    .min(updateProfileBodyDailyMinutesTargetMin)
+    .max(updateProfileBodyDailyMinutesTargetMax)
+    .optional(),
+  weeklyTasksTarget: zod
+    .number()
+    .min(1)
+    .max(updateProfileBodyWeeklyTasksTargetMax)
+    .optional(),
+  preferences: zod
+    .object({
+      notificationsEnabled: zod.boolean(),
+      nudgesEnabled: zod.boolean(),
+      adsEnabled: zod.boolean(),
+    })
+    .optional(),
+});
+
+export const UpdateProfileResponse = zod.object({
+  id: zod.string().uuid(),
+  displayName: zod.string().nullish(),
+  careerTrack: zod.string().nullish(),
+  seniority: zod.string().nullish(),
+  targetRole: zod.string().nullish(),
+  dailyMinutesTarget: zod.number(),
+  weeklyTasksTarget: zod.number(),
+  preferences: zod.object({
+    notificationsEnabled: zod.boolean(),
+    nudgesEnabled: zod.boolean(),
+    adsEnabled: zod.boolean(),
+  }),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});

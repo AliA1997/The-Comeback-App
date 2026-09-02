@@ -1,11 +1,13 @@
 import { todayStr } from '@/shared/lib/dateUtils';
-import type { Task } from '@/domains/task-planning/types';
+import { taskDate, type Task } from '@/shared/types/task';
 import type { DayRecord } from '../types';
 
 export interface TodayStats {
   completedCount: number;
   totalMinutes: number;
   pendingCount: number;
+  /** Points banked today — Principle IV, momentum you can read in a glance. */
+  earnedScore: number;
 }
 
 export interface WeeklyDataPoint {
@@ -20,10 +22,17 @@ export function computeTodayStats(
 ): TodayStats {
   const today = todayStr();
   const record = dayRecords[today];
+
+  const completedIds = new Set(record?.completedTaskIds ?? []);
+
   return {
-    completedCount: record?.completedTaskIds.length ?? 0,
+    completedCount: completedIds.size,
     totalMinutes: record?.totalMinutes ?? 0,
-    pendingCount: tasks.filter((t) => t.date === today && t.status === 'pending').length,
+    pendingCount: tasks.filter((t) => taskDate(t) === today && t.status === 'pending').length,
+    earnedScore: tasks.reduce(
+      (total, task) => (completedIds.has(task.id) ? total + task.score : total),
+      0
+    ),
   };
 }
 

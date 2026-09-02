@@ -1,10 +1,14 @@
 import { getLastNDays } from '@/shared/lib/dateUtils';
-import type { Task, TaskCategory } from '@/domains/task-planning/types';
+import type { TaskCategory } from '@/shared/types/skills';
+import { taskCategory, taskDate, type Task } from '@/shared/types/task';
 import type { DayRecord, Suggestion } from '../types';
 
 function getCompletedInDates(tasks: Task[], category: TaskCategory, dates: string[]): Task[] {
   return tasks.filter(
-    (t) => t.category === category && t.status === 'completed' && dates.includes(t.date)
+    (t) =>
+      taskCategory(t) === category &&
+      t.status === 'completed' &&
+      dates.includes(taskDate(t))
   );
 }
 
@@ -17,7 +21,7 @@ export function generateSuggestions(
   const last3 = getLastNDays(3);
 
   const completedThisWeek = tasks.filter(
-    (t) => t.status === 'completed' && last7.includes(t.date)
+    (t) => t.status === 'completed' && last7.includes(taskDate(t))
   );
 
   const recentAlgo = getCompletedInDates(tasks, 'LeetCode', last3);
@@ -109,15 +113,19 @@ export function getNextBestTask(
   const last3 = getLastNDays(3);
 
   const scored = pending.map((task) => {
+    const category = taskCategory(task);
     let score = 0;
-    const recentInCategory = getCompletedInDates(tasks, task.category, last3);
+    const recentInCategory = getCompletedInDates(tasks, category, last3);
     if (recentInCategory.length === 0) score += 30;
-    if (task.estimatedDuration <= 30) score += 15;
-    if (task.estimatedDuration <= 60) score += 5;
-    if (task.category === 'Applications') score += 20;
-    if (task.category === 'LeetCode') score += 15;
-    if (task.category === 'Projects') score += 10;
-    const ageHours = (Date.now() - task.createdAt) / (1000 * 60 * 60);
+    if (task.estimatedDurationMinutes <= 30) score += 15;
+    if (task.estimatedDurationMinutes <= 60) score += 5;
+    if (category === 'Applications') score += 20;
+    if (category === 'LeetCode') score += 15;
+    if (category === 'Projects') score += 10;
+    // Urgent work should not sit behind a stale low-priority task.
+    if (task.priority === 'urgent') score += 25;
+    if (task.priority === 'high') score += 10;
+    const ageHours = (Date.now() - new Date(task.createdAt).getTime()) / (1000 * 60 * 60);
     score += Math.min(ageHours, 48);
     return { task, score };
   });

@@ -15,3 +15,4 @@ export {
   validateTemplateItem,
 } from './services/DailyTaskEngine';
 export { DEFAULT_ROUTINE_TEMPLATE } from './data/defaultTemplate';
+export { DashboardScreen } from './features/DashboardScreen';

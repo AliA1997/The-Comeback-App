@@ -3,7 +3,8 @@ import { useRouter } from 'expo-router';
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useColors } from '@/shared/theme/useColors';
-import { useActiveTask } from '@/domains/task-planning/selectors';
+import { taskCategory } from '@/shared/types/task';
+import { useActiveTask } from '@/domains/task-planning/hooks/useTasks';
 import { useIsTimerPaused } from '@/domains/time-focus/selectors';
 import { TimerSecondsText } from './TimerSecondsText';
 
@@ -24,6 +25,8 @@ export function ActiveTimerBanner() {
 
   return (
     <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${isPaused ? 'Paused' : 'Running'}: ${task.title}. Open timer.`}
       onPress={() => router.push('/timer')}
       style={({ pressed }) => [
         styles.container,
@@ -40,7 +43,7 @@ export function ActiveTimerBanner() {
           {task.title}
         </Text>
         <Text style={[styles.sub, { color: colors.mutedForeground }]}>
-          {isPaused ? 'Paused' : 'In focus'} · {task.category}
+          {isPaused ? 'Paused' : 'In focus'} · {taskCategory(task)}
         </Text>
       </View>
       <TimerSecondsText style={[styles.time, { color: accent }]} />

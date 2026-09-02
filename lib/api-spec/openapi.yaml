@@ -10,6 +10,16 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: lists
+    description: Task lists
+  - name: tasks
+    description: Tasks and task lifecycle transitions
+  - name: task-types
+    description: The scoring catalogue
+  - name: profile
+    description: The authenticated user's profile
+security:
+  - bearerAuth: []
 paths:
   /healthz:
     get:
@@ -17,6 +27,7 @@ paths:
       tags: [health]
       summary: Health check
       description: Returns server health status
+      security: []
       responses:
         "200":
           description: Healthy
@@ -24,7 +35,488 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /lists:
+    get:
+      operationId: listLists
+      tags: [lists]
+      summary: List the user's lists
+      description: Returns the authenticated user's lists in manual order.
+      parameters:
+        - name: includeArchived
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+      responses:
+        "200":
+          description: The user's lists
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/List"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      operationId: createList
+      tags: [lists]
+      summary: Create a list
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateListRequest"
+      responses:
+        "201":
+          description: The created list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/List"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+
+  /lists/{listId}:
+    parameters:
+      - $ref: "#/components/parameters/ListId"
+    patch:
+      operationId: updateList
+      tags: [lists]
+      summary: Update a list
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateListRequest"
+      responses:
+        "200":
+          description: The updated list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/List"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+    delete:
+      operationId: deleteList
+      tags: [lists]
+      summary: Delete a list
+      description: >-
+        Soft-deletes the list by archiving it and cascades every task it holds
+        to deleted. The response reports how many tasks were affected.
+      responses:
+        "200":
+          description: The archived list and its cascade count
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteListResult"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /lists/{listId}/restore:
+    parameters:
+      - $ref: "#/components/parameters/ListId"
+    post:
+      operationId: restoreList
+      tags: [lists]
+      summary: Restore an archived list
+      description: >-
+        Un-archives the list and restores the tasks that were deleted by the
+        same cascade, matched on deletedAt.
+      responses:
+        "200":
+          description: The restored list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/List"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /tasks:
+    get:
+      operationId: listTasks
+      tags: [tasks]
+      summary: List tasks
+      description: >-
+        Returns the authenticated user's tasks. Deleted tasks are excluded
+        unless status=deleted is requested explicitly.
+      parameters:
+        - name: listId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/TaskStatus"
+        - name: priority
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/PriorityLevel"
+      responses:
+        "200":
+          description: The matching tasks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Task"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      operationId: createTask
+      tags: [tasks]
+      summary: Create a task
+      description: >-
+        The score is computed server-side from the task type and priority; a
+        score supplied in the request body is ignored.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTaskRequest"
+      responses:
+        "201":
+          description: The created task
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+
+  /tasks/{taskId}:
+    parameters:
+      - $ref: "#/components/parameters/TaskId"
+    get:
+      operationId: getTask
+      tags: [tasks]
+      summary: Get a task
+      responses:
+        "200":
+          description: The task
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      operationId: updateTask
+      tags: [tasks]
+      summary: Update a task
+      description: >-
+        Changing taskTypeId or priority recomputes the score. Both are
+        rejected on a completed task, whose score is a historical fact.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTaskRequest"
+      responses:
+        "200":
+          description: The updated task
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+    delete:
+      operationId: deleteTask
+      tags: [tasks]
+      summary: Delete a task
+      description: Soft delete - the row is retained so the action can be undone.
+      responses:
+        "200":
+          description: The deleted task
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /tasks/{taskId}/start:
+    parameters:
+      - $ref: "#/components/parameters/TaskId"
+    post:
+      operationId: startTask
+      tags: [tasks]
+      summary: Start a task
+      responses:
+        "200":
+          $ref: "#/components/responses/TaskTransition"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /tasks/{taskId}/pause:
+    parameters:
+      - $ref: "#/components/parameters/TaskId"
+    post:
+      operationId: pauseTask
+      tags: [tasks]
+      summary: Pause a running task
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PauseTaskRequest"
+      responses:
+        "200":
+          $ref: "#/components/responses/TaskTransition"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /tasks/{taskId}/resume:
+    parameters:
+      - $ref: "#/components/parameters/TaskId"
+    post:
+      operationId: resumeTask
+      tags: [tasks]
+      summary: Resume a paused task
+      responses:
+        "200":
+          $ref: "#/components/responses/TaskTransition"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /tasks/{taskId}/stop:
+    parameters:
+      - $ref: "#/components/parameters/TaskId"
+    post:
+      operationId: stopTask
+      tags: [tasks]
+      summary: Stop a task without completing it
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StopTaskRequest"
+      responses:
+        "200":
+          $ref: "#/components/responses/TaskTransition"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /tasks/{taskId}/complete:
+    parameters:
+      - $ref: "#/components/parameters/TaskId"
+    post:
+      operationId: completeTask
+      tags: [tasks]
+      summary: Complete a task
+      description: >-
+        Records completedAt and computes actualDurationMinutes with all
+        paused time excluded.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CompleteTaskRequest"
+      responses:
+        "200":
+          $ref: "#/components/responses/TaskTransition"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /tasks/{taskId}/restore:
+    parameters:
+      - $ref: "#/components/parameters/TaskId"
+    post:
+      operationId: restoreTask
+      tags: [tasks]
+      summary: Restore a deleted task
+      description: The score is recomputed from the task's current type and priority.
+      responses:
+        "200":
+          $ref: "#/components/responses/TaskTransition"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /task-types:
+    get:
+      operationId: listTaskTypes
+      tags: [task-types]
+      summary: List task types
+      description: Static seed data - safe to cache indefinitely.
+      responses:
+        "200":
+          description: The task-type catalogue
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TaskType"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /me/profile:
+    get:
+      operationId: getProfile
+      tags: [profile]
+      summary: Get the authenticated user's profile
+      description: >-
+        Upserts the profile row if the auth.users trigger did not create one,
+        so a missed trigger never blocks sign-in.
+      responses:
+        "200":
+          description: The profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Profile"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    patch:
+      operationId: updateProfile
+      tags: [profile]
+      summary: Update the authenticated user's profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProfileRequest"
+      responses:
+        "200":
+          description: The updated profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Profile"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    ListId:
+      name: listId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    TaskId:
+      name: taskId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  responses:
+    TaskTransition:
+      description: The task after the transition
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Task"
+    Unauthorized:
+      description: Missing or invalid credentials
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    NotFound:
+      description: No such resource for this user
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    Conflict:
+      description: The request conflicts with the resource's current state
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    UnprocessableEntity:
+      description: The request body failed validation
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+
   schemas:
     HealthStatus:
       type: object
@@ -34,3 +526,336 @@ components:
       required:
         - status
 
+    Problem:
+      type: object
+      description: >-
+        A machine-readable code plus copy that is safe to show the user.
+        Per Principle III, no message assigns blame.
+      properties:
+        code:
+          $ref: "#/components/schemas/ProblemCode"
+        title:
+          type: string
+        detail:
+          type: string
+        fieldErrors:
+          type: object
+          description: Field name to message, for rendering inline beneath the field.
+          additionalProperties:
+            type: string
+      required:
+        - code
+        - title
+
+    ProblemCode:
+      type: string
+      enum:
+        - Unauthorized
+        - NotFound
+        - DuplicateListName
+        - InvalidTaskTransition
+        - TaskAlreadyCompleted
+        - UnknownTaskType
+        - ValidationError
+        - InternalError
+
+    PriorityLevel:
+      type: string
+      enum: [low, medium, high, urgent]
+
+    TaskStatus:
+      type: string
+      enum: [pending, in_progress, paused, completed, deleted]
+
+    TaskType:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+        label:
+          type: string
+        score:
+          type: integer
+        isSystem:
+          type: boolean
+      required: [id, type, label, score, isSystem]
+
+    List:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        position:
+          type: integer
+        isArchived:
+          type: boolean
+        taskCount:
+          type: integer
+          description: Number of non-deleted tasks in the list.
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, name, position, isArchived, taskCount, createdAt, updatedAt]
+
+    DeleteListResult:
+      type: object
+      properties:
+        list:
+          $ref: "#/components/schemas/List"
+        deletedTaskCount:
+          type: integer
+      required: [list, deletedTaskCount]
+
+    Task:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        listId:
+          type: string
+          format: uuid
+        taskTypeId:
+          type: string
+          format: uuid
+        taskType:
+          $ref: "#/components/schemas/TaskType"
+        title:
+          type: string
+        description:
+          type: string
+        priority:
+          $ref: "#/components/schemas/PriorityLevel"
+        score:
+          type: integer
+          description: Server-computed snapshot; clients never send this.
+        status:
+          $ref: "#/components/schemas/TaskStatus"
+        estimatedDurationMinutes:
+          type: integer
+        actualDurationMinutes:
+          type: [integer, "null"]
+        savedRemainingSeconds:
+          type: [integer, "null"]
+        totalPausedMs:
+          type: integer
+        startedAt:
+          type: [string, "null"]
+          format: date-time
+        pausedAt:
+          type: [string, "null"]
+          format: date-time
+        completedAt:
+          type: [string, "null"]
+          format: date-time
+        deletedAt:
+          type: [string, "null"]
+          format: date-time
+        dueDate:
+          type: [string, "null"]
+        position:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - listId
+        - taskTypeId
+        - taskType
+        - title
+        - description
+        - priority
+        - score
+        - status
+        - estimatedDurationMinutes
+        - totalPausedMs
+        - position
+        - createdAt
+        - updatedAt
+
+    CreateListRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 60
+        position:
+          type: integer
+      required: [name]
+
+    UpdateListRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 60
+        position:
+          type: integer
+        isArchived:
+          type: boolean
+
+    CreateTaskRequest:
+      type: object
+      properties:
+        listId:
+          type: string
+          format: uuid
+        taskTypeId:
+          type: string
+          format: uuid
+        title:
+          type: string
+          minLength: 1
+          maxLength: 100
+        description:
+          type: string
+          maxLength: 500
+        priority:
+          $ref: "#/components/schemas/PriorityLevel"
+        estimatedDurationMinutes:
+          type: integer
+          minimum: 1
+          maximum: 480
+        dueDate:
+          type: [string, "null"]
+        position:
+          type: integer
+      required: [listId, taskTypeId, title]
+
+    UpdateTaskRequest:
+      type: object
+      properties:
+        listId:
+          type: string
+          format: uuid
+        taskTypeId:
+          type: string
+          format: uuid
+        title:
+          type: string
+          minLength: 1
+          maxLength: 100
+        description:
+          type: string
+          maxLength: 500
+        priority:
+          $ref: "#/components/schemas/PriorityLevel"
+        estimatedDurationMinutes:
+          type: integer
+          minimum: 1
+          maximum: 480
+        dueDate:
+          type: [string, "null"]
+        position:
+          type: integer
+
+    PauseTaskRequest:
+      type: object
+      properties:
+        savedRemainingSeconds:
+          type: integer
+          minimum: 0
+
+    StopTaskRequest:
+      type: object
+      properties:
+        savedRemainingSeconds:
+          type: integer
+          minimum: 0
+
+    CompleteTaskRequest:
+      type: object
+      properties:
+        savedRemainingSeconds:
+          type: integer
+          minimum: 0
+        totalPausedMs:
+          type: integer
+          minimum: 0
+          description: >-
+            Pause time accumulated on the device but not yet synced. Added to
+            the stored total before the focused duration is computed.
+
+    UserPreferences:
+      type: object
+      properties:
+        notificationsEnabled:
+          type: boolean
+        nudgesEnabled:
+          type: boolean
+        adsEnabled:
+          type: boolean
+      required: [notificationsEnabled, nudgesEnabled, adsEnabled]
+
+    Profile:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        displayName:
+          type: [string, "null"]
+        careerTrack:
+          type: [string, "null"]
+        seniority:
+          type: [string, "null"]
+        targetRole:
+          type: [string, "null"]
+        dailyMinutesTarget:
+          type: integer
+        weeklyTasksTarget:
+          type: integer
+        preferences:
+          $ref: "#/components/schemas/UserPreferences"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - dailyMinutesTarget
+        - weeklyTasksTarget
+        - preferences
+        - createdAt
+        - updatedAt
+
+    UpdateProfileRequest:
+      type: object
+      properties:
+        displayName:
+          type: [string, "null"]
+          maxLength: 40
+        careerTrack:
+          type: [string, "null"]
+        seniority:
+          type: [string, "null"]
+        targetRole:
+          type: [string, "null"]
+          maxLength: 80
+        dailyMinutesTarget:
+          type: integer
+          minimum: 15
+          maximum: 480
+        weeklyTasksTarget:
+          type: integer
+          minimum: 1
+          maximum: 60
+        preferences:
+          $ref: "#/components/schemas/UserPreferences"

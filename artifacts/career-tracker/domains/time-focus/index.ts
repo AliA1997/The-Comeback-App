@@ -5,6 +5,6 @@ export { TimerProvider } from './components/TimerProvider';
 export { TimerSecondsText } from './components/TimerSecondsText';
 export { TimerDisplay } from './components/TimerDisplay';
 export { ActiveTimerBanner } from './components/ActiveTimerBanner';
-export { useTimer } from './hooks/useTimer';
+export { TimerScreen } from './features/TimerScreen';
 export { useIdleDetection } from './hooks/useIdleDetection';
 export * as SessionLifecycle from './services/SessionLifecycle';

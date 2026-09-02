@@ -5,7 +5,9 @@
  * Idempotent: `unlockAchievement` no-ops if already unlocked.
  */
 import { useAppStore } from '@/shared/store/root';
+import { readCachedTasks } from '@/shared/api/taskCache';
 import { TASK_CATEGORIES } from '@/shared/types/skills';
+import { taskCategory } from '@/shared/types/task';
 import { computeStreak } from './StreakEngine';
 import { computeTotalHours } from './StatsEngine';
 import { findAchievement } from '../data/achievements';
@@ -16,13 +18,14 @@ export interface UnlockResult {
 
 export function runAchievementEvaluation(): UnlockResult {
   const state = useAppStore.getState();
-  const { tasks, dayRecords, lessonProgress, unlockAchievement, pushNotification } = state;
+  const { dayRecords, lessonProgress, unlockAchievement, pushNotification } = state;
 
-  const completed = tasks.filter((t) => t.status === 'completed');
+  // Tasks are server state, so React Query's cache is the source of truth.
+  const completed = readCachedTasks().filter((t) => t.status === 'completed');
   const totalHours = computeTotalHours(dayRecords);
   const streak = computeStreak(dayRecords);
   const completedLessons = Object.values(lessonProgress).filter((p) => p.status === 'completed');
-  const categoriesHit = new Set(completed.map((t) => t.category));
+  const categoriesHit = new Set(completed.map(taskCategory));
 
   const checks: Array<[boolean, string]> = [
     [completed.length >= 1, 'first-task'],

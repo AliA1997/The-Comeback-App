@@ -4,10 +4,13 @@ import { useRouter } from 'expo-router';
 import React from 'react';
 import { Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { CategoryBadge } from '@/shared/ui/CategoryBadge';
+import { PriorityBadge } from '@/shared/ui/PriorityBadge';
+import { ScorePill } from '@/shared/ui/ScorePill';
 import { useColors } from '@/shared/theme/useColors';
-import { useAppStore } from '@/shared/store/root';
+import { isOpen, taskCategory, type Task } from '@/shared/types/task';
+import { useActiveTaskId, useIsAnyTimerRunning } from '@/domains/time-focus/selectors';
 import { startSession } from '@/domains/time-focus/services/SessionLifecycle';
-import type { Task } from '@/domains/task-planning/types';
+import { useDeleteTask } from '@/domains/task-planning/hooks/useTaskMutations';
 
 interface Props {
   task: Task;
@@ -15,8 +18,9 @@ interface Props {
 }
 
 /**
- * Memoized: only re-renders when the `task` reference changes (Zustand
- * immutable updates guarantee stable refs unless THIS task was mutated).
+ * Memoized: only re-renders when the `task` reference changes. React Query
+ * hands back a new array on every refetch but preserves item identity for
+ * unchanged rows, so the guarantee the old Zustand store gave still holds.
  *
  * The custom comparator intentionally ignores `onEdit` identity because
  * dashboards pass inline arrows like `onEdit={() => handleEdit(task.id)}`.
@@ -25,53 +29,45 @@ function TaskCardImpl({ task, onEdit }: Props) {
   const colors = useColors();
   const router = useRouter();
 
-  // Granular subscriptions — actions are stable refs, booleans only flip on
-  // real transitions. Crucially, this card does NOT subscribe to the whole
-  // `activeTimer` object, so per-second timer ticks do not re-render it.
-  const setTaskStatus = useAppStore((s) => s.setTaskStatus);
-  const deleteTask = useAppStore((s) => s.deleteTask);
-  const isActive = useAppStore((s) => s.activeTimer?.taskId === task.id);
-  const isTimerRunning = useAppStore((s) => s.activeTimer !== null);
+  // Granular subscriptions — booleans only flip on real transitions.
+  // Crucially, this card does NOT subscribe to the whole `activeTimer`
+  // object, so per-second timer ticks do not re-render it.
+  const activeTaskId = useActiveTaskId();
+  const isTimerRunning = useIsAnyTimerRunning();
+  const isActive = activeTaskId === task.id;
 
-  const totalSeconds = task.estimatedDuration * 60;
-  const savedRemaining = task.savedRemainingSeconds;
+  const deleteTask = useDeleteTask();
+
+  const totalSeconds = task.estimatedDurationMinutes * 60;
+  const savedRemaining = task.savedRemainingSeconds ?? undefined;
   const hasProgress =
     savedRemaining !== undefined &&
     savedRemaining > 0 &&
     savedRemaining < totalSeconds &&
     task.status !== 'completed' &&
-    task.status !== 'skipped';
+    task.status !== 'deleted';
   const progressFraction = hasProgress ? 1 - savedRemaining! / totalSeconds : 0;
   const savedMinsLeft = hasProgress ? Math.ceil(savedRemaining! / 60) : 0;
 
   const handleStart = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    if (isActive) {
-      router.push('/timer');
-      return;
-    }
-    startSession(task.id, task.estimatedDuration);
+    if (!isActive) startSession(task);
     router.push('/timer');
-  };
-
-  const handleSkip = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setTaskStatus(task.id, 'skipped');
   };
 
   const handleDelete = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    deleteTask(task.id);
+    deleteTask.mutate({ taskId: task.id });
   };
 
   const statusColor =
     task.status === 'completed'
       ? colors.accent
       : task.status === 'in_progress'
-      ? colors.primary
-      : task.status === 'skipped'
-      ? colors.mutedForeground
-      : colors.border;
+        ? colors.primary
+        : task.status === 'paused'
+          ? colors.muted
+          : colors.border;
 
   return (
     <View
@@ -87,17 +83,23 @@ function TaskCardImpl({ task, onEdit }: Props) {
       <View style={[styles.statusBar, { backgroundColor: statusColor }]} />
       <View style={styles.content}>
         <View style={styles.header}>
-          <CategoryBadge category={task.category} small />
-          <Text style={[styles.duration, { color: colors.mutedForeground }]}>
-            {task.estimatedDuration}m
-          </Text>
+          <View style={styles.headerBadges}>
+            <CategoryBadge category={taskCategory(task)} small />
+            <PriorityBadge priority={task.priority} small />
+          </View>
+          <View style={styles.headerMeta}>
+            <ScorePill score={task.score} earned={task.status === 'completed'} small />
+            <Text style={[styles.duration, { color: colors.mutedForeground }]}>
+              {task.estimatedDurationMinutes}m
+            </Text>
+          </View>
         </View>
 
         <Text
           style={[
             styles.title,
             {
-              color: task.status === 'skipped' ? colors.mutedForeground : colors.foreground,
+              color: colors.foreground,
               textDecorationLine: task.status === 'completed' ? 'line-through' : 'none',
             },
           ]}
@@ -131,9 +133,14 @@ function TaskCardImpl({ task, onEdit }: Props) {
           </View>
         ) : null}
 
-        {task.status === 'pending' || task.status === 'in_progress' ? (
+        {isOpen(task) ? (
           <View style={styles.actions}>
             <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={
+                isActive ? `${task.title} is running` : `Start ${task.title}`
+              }
+              accessibilityState={{ disabled: isTimerRunning && !isActive }}
               style={[
                 styles.startBtn,
                 {
@@ -155,6 +162,8 @@ function TaskCardImpl({ task, onEdit }: Props) {
             </Pressable>
 
             <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel={`Edit ${task.title}`}
               style={[styles.iconBtn, { borderColor: colors.border }]}
               onPress={() => onEdit?.(task)}
             >
@@ -162,13 +171,8 @@ function TaskCardImpl({ task, onEdit }: Props) {
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.iconBtn, { borderColor: colors.border }]}
-              onPress={handleSkip}
-            >
-              <Feather name="skip-forward" size={16} color={colors.mutedForeground} />
-            </TouchableOpacity>
-
-            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel={`Delete ${task.title}`}
               style={[styles.iconBtn, { borderColor: colors.border }]}
               onPress={handleDelete}
             >
@@ -178,10 +182,15 @@ function TaskCardImpl({ task, onEdit }: Props) {
         ) : (
           <View style={styles.completedRow}>
             <Text style={[styles.statusLabel, { color: statusColor }]}>
-              {task.status === 'completed' ? 'Completed' : 'Skipped'}
-              {task.actualDuration ? ` · ${task.actualDuration}m` : ''}
+              Completed
+              {task.actualDurationMinutes ? ` · ${task.actualDurationMinutes}m` : ''}
             </Text>
-            <TouchableOpacity onPress={handleDelete}>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel={`Delete ${task.title}`}
+              hitSlop={12}
+              onPress={handleDelete}
+            >
               <Feather name="trash-2" size={15} color={colors.mutedForeground} />
             </TouchableOpacity>
           </View>
@@ -197,7 +206,9 @@ const styles = StyleSheet.create({
   card: { borderRadius: 16, flexDirection: 'row', overflow: 'hidden', marginBottom: 12 },
   statusBar: { width: 4 },
   content: { flex: 1, padding: 16, gap: 8 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  headerBadges: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 },
+  headerMeta: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   duration: { fontSize: 12, fontFamily: 'Inter_500Medium' },
   title: { fontSize: 16, fontFamily: 'Inter_600SemiBold', lineHeight: 22 },
   description: { fontSize: 13, fontFamily: 'Inter_400Regular', lineHeight: 18 },
@@ -209,16 +220,16 @@ const styles = StyleSheet.create({
   startBtn: {
     flexDirection: 'row',
     alignItems: 'center',
+    minHeight: 44,
     paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 20,
+    borderRadius: 22,
     gap: 6,
   },
   startText: { color: '#fff', fontSize: 13, fontFamily: 'Inter_600SemiBold' },
   iconBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',

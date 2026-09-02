@@ -46,37 +46,87 @@ Each spec states which core principles it serves, and carries its own acceptance
 
 ## Tech Stack
 
-**App** — React Native · Expo (SDK 54) · Expo Router 6 · React Query (server state) · Zustand v5 (client-only state, persisted to AsyncStorage)
+**App** — React Native · Expo (SDK 54) · Expo Router 6 · React Query (server state) · Zustand v5 (client-only state, persisted to AsyncStorage) · react-hook-form + `@hookform/resolvers/zod` for forms · supabase-js for identity
 
-**Backend** — Express 5 · Drizzle ORM · PostgreSQL, application tables in the `comebackapp` schema · Supabase Auth (OAuth) for identity
+**Backend** — Express 5 · Drizzle ORM · PostgreSQL, application tables in the `comebackapp` schema · Supabase Auth (OAuth) for identity, verified in the API with `jose`
 
-**Shared** — TypeScript 5.9 · Zod (`zod/v4`) and `drizzle-zod` for validation · Orval for API codegen from the OpenAPI spec · esbuild for the server bundle
+**Shared** — TypeScript 5.9 · Zod · Orval for API codegen from the OpenAPI spec · esbuild for the server bundle · `node --test` via `tsx` for unit tests
 
 **Tooling** — pnpm workspaces · Node.js 24
 
 ## Repository Layout
 
 ```
-artifacts/api-server        Express API
+artifacts/api-server        Express API — routes, JWT middleware, scoring, lifecycle
 artifacts/career-tracker    The Expo app
 artifacts/mockup-sandbox    Vite component preview server
 lib/api-spec                OpenAPI spec + Orval config (source of truth for the API)
 lib/api-client-react        Generated React Query hooks + custom fetch
 lib/api-zod                 Generated Zod schemas
-lib/db                      Drizzle schema and client
+lib/db                      Drizzle schema, client, RLS/trigger DDL, task-type seeds
 specs/                      Feature specifications
 ```
+
+App domains: `auth`, `lists`, `task-planning`, `time-focus`, `progress`,
+`learning`, `notifications`, `daily-tasks`, `user-profile`.
 
 ## Key Commands
 
 ```
 pnpm run typecheck                                     Typecheck every package
+pnpm run test                                          Run unit tests in every package
 pnpm run build                                         Typecheck + build all packages
 pnpm --filter @workspace/api-spec run codegen          Regenerate API hooks and Zod schemas
 pnpm --filter @workspace/db run push                   Push DB schema changes (dev only)
+pnpm --filter @workspace/db run seed                   Apply RLS/trigger DDL + seed task types
 pnpm --filter @workspace/api-server run dev            Run the API server locally
 pnpm --filter @workspace/career-tracker run dev        Run the Expo app
 ```
+
+### Environment
+
+| Variable | Used by | Purpose |
+|---|---|---|
+| `DATABASE_URL` | `lib/db`, API | Postgres connection |
+| `SUPABASE_URL` | API | Issuer for JWT verification |
+| `SUPABASE_JWT_SECRET` | API | Fallback for legacy HS256 projects |
+| `PORT` | API | Listen port |
+| `EXPO_PUBLIC_API_URL` | App | Base URL of the API server |
+| `EXPO_PUBLIC_SUPABASE_URL` | App | Supabase project URL |
+| `EXPO_PUBLIC_SUPABASE_ANON_KEY` | App | Supabase anon key |
+
+Without the two `EXPO_PUBLIC_SUPABASE_*` values the sign-in screen renders a
+configuration notice instead of failing an auth attempt.
+
+`DATABASE_URL` **must** point at the Supabase project's own Postgres. The
+schema foreign-keys `user_profiles.id`, `lists.user_id` and `tasks.user_id` to
+`auth.users(id)`, and the profile trigger fires on `auth.users` — none of which
+exist in a separate database.
+
+`SUPABASE_JWT_SECRET` is not optional for projects whose
+`/auth/v1/.well-known/jwks.json` returns `{"keys":[]}`. Those still sign user
+tokens with the shared HS256 secret, and `requireAuth` dispatches on the
+token's `alg`, so the JWKS path can never verify them.
+
+### Deploying the API
+
+`artifacts/api-server/Dockerfile` builds from the **repo root**, not from the
+artifact directory:
+
+```
+docker build -f artifacts/api-server/Dockerfile -t comeback-api .
+```
+
+It exists because platform auto-detection (Nixpacks and similar) mis-handles
+this workspace's pnpm catalog and `minimumReleaseAge` policy. esbuild bundles
+every dependency, so the runtime stage ships `dist/` and nothing else.
+
+Set `DATABASE_URL`, `SUPABASE_URL`, `SUPABASE_JWT_SECRET` and `NODE_ENV=production`;
+the host injects `PORT`. Point health checks at `/api/healthz` — the only route
+that answers without a token.
+
+After the first deploy, run `push` then `seed` against the same database, or
+task creation has no task types to reference.
 
 ## Standards
 
@@ -84,7 +134,8 @@ The frontend follows the Qamar Labs Frontend Implementation Guide, mapped onto t
 
 - **Domains own their code.** `domains/<domain>/` holds `features/` (screen bodies), `components/`, `hooks/`, `api/`, `services/`, `store.ts`, `selectors.ts`, `types.ts`. Route files in `app/` carry no business logic — each renders exactly one feature.
 - **Domains never import each other's internals.** Cross-domain access goes through the public barrel (`domains/<d>/index.ts`) or `shared/`. Anything two domains need moves to `shared/`.
-- **If the server can send it, React Query owns it.** Zustand holds only client-only state that is shared or must survive unmount — the active timer, onboarding flags, filter selections. Everything else is `useState`.
+- **If the server can send it, React Query owns it.** Lists, tasks, task types and the profile are React Query. Zustand holds only client-only state that is shared or must survive unmount — the active timer, the onboarding flag, the auth session mirror, day records, learning progress. Everything else is `useState`.
+- **Services that run off a React tick read the cache, not a copy.** `shared/api/taskCache.ts` and `shared/api/profileCache.ts` exist so the achievement evaluator, nudge scheduler and idle-ad timer never keep a parallel truth.
 - **Cross-domain side effects live in `services/`.** Store slices are pure data mutators and never reach across domains; orchestration calls `useAppStore.getState()` from a service.
 - **Read colors through `useColors()`, never literals.** The palette is frozen (see Constraints).
 - **Memoize only where a measurement justifies it.** The four optimizations below are the template, not a license to add more.

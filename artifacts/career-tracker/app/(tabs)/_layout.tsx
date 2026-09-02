@@ -15,6 +15,10 @@ function NativeTabLayout() {
         <Icon sf={{ default: 'house', selected: 'house.fill' }} />
         <Label>Dashboard</Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="lists">
+        <Icon sf={{ default: 'list.bullet', selected: 'list.bullet' }} />
+        <Label>Lists</Label>
+      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="tasks">
         <Icon sf={{ default: 'checklist', selected: 'checklist' }} />
         <Label>Tasks</Label>
@@ -68,6 +72,14 @@ function ClassicTabLayout() {
           title: 'Dashboard',
           tabBarIcon: ({ color }) =>
             isIOS ? <SymbolView name="house" tintColor={color} size={24} /> : <Feather name="home" size={22} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="lists"
+        options={{
+          title: 'Lists',
+          tabBarIcon: ({ color }) =>
+            isIOS ? <SymbolView name="list.bullet" tintColor={color} size={24} /> : <Feather name="list" size={22} color={color} />,
         }}
       />
       <Tabs.Screen

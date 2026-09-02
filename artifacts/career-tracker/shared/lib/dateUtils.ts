@@ -29,7 +29,3 @@ export function getLastNDays(n: number): string[] {
   return dates;
 }
 
-export function formatDateShort(dateStr: string): string {
-  const d = new Date(dateStr + 'T00:00:00');
-  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-}

@@ -9,6 +9,7 @@
  */
 import React, { useEffect, useRef } from 'react';
 import { useAppStore } from '@/shared/store/root';
+import { readCachedTasks } from '@/shared/api/taskCache';
 import { completeSession } from '@/domains/time-focus/services/SessionLifecycle';
 import { NotificationService } from '@/domains/notifications/services/NotificationService';
 
@@ -46,8 +47,10 @@ export function TimerProvider({ children }: Props) {
           clearInterval(intervalRef.current);
           intervalRef.current = null;
         }
-        const task = state.tasks.find((t) => t.id === timer.taskId);
-        completeSession();
+        // Tasks are server state; read the cache rather than the store. Like
+        // `getState()` above, this keeps the interval free of subscriptions.
+        const task = readCachedTasks().find((t) => t.id === timer.taskId) ?? null;
+        completeSession(task);
         if (task) {
           NotificationService.showTimerCompleteAlert(
             task.title,

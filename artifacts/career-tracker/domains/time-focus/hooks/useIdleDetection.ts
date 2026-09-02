@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useIsTimerIdle } from '@/domains/time-focus/selectors';
-import { useAppStore } from '@/shared/store/root';
-import { AdService } from '@/services/AdService';
+import { readCachedProfile } from '@/shared/api/profileCache';
+import { AdService } from '@/shared/services/AdService';
 
 const IDLE_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
 
@@ -25,8 +25,7 @@ export function useIdleDetection() {
     if (!isIdle) return;
 
     const fire = () => {
-      const { adsEnabled } = useAppStore.getState().profile.preferences;
-      if (adsEnabled) AdService.showInterstitialAd();
+      if (readCachedProfile().preferences.adsEnabled) AdService.showInterstitialAd();
     };
 
     idleTimerRef.current = setTimeout(function reschedule() {

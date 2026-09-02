@@ -5,6 +5,8 @@
  * Called by `<NudgeProvider>` on mount and at most once per hour.
  */
 import { useAppStore } from '@/shared/store/root';
+import { readCachedProfile } from '@/shared/api/profileCache';
+import { readCachedTasks } from '@/shared/api/taskCache';
 import { generateSuggestions } from '@/domains/progress/services/SuggestionEngine';
 
 const COOLDOWN_MS = 12 * 60 * 60 * 1000; // each rule fires at most every 12h
@@ -12,9 +14,9 @@ const COOLDOWN_MS = 12 * 60 * 60 * 1000; // each rule fires at most every 12h
 export function runNudgeEvaluation(): void {
   const state = useAppStore.getState();
 
-  if (!state.profile.preferences.nudgesEnabled) return;
+  if (!readCachedProfile().preferences.nudgesEnabled) return;
 
-  const suggestions = generateSuggestions(state.tasks, state.dayRecords);
+  const suggestions = generateSuggestions(readCachedTasks(), state.dayRecords);
   const now = Date.now();
 
   for (const suggestion of suggestions) {
