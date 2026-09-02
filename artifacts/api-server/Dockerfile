@@ -42,8 +42,17 @@ COPY tsconfig.base.json tsconfig.json ./
 COPY lib/ lib/
 COPY artifacts/api-server/ artifacts/api-server/
 
-RUN pnpm --filter @workspace/api-server run typecheck \
- && pnpm --filter @workspace/api-server run build
+# Run from the artifact so `tsc` resolves through its own node_modules — the
+# filtered install above does not bring in the root project's devDependencies.
+WORKDIR /repo/artifacts/api-server
+
+# The referenced TS projects must be built before api-server typechecks, or
+# every cross-package import fails with TS6305 ("output file has not been
+# built"). Only the two it actually references — building all of them would
+# drag in api-client-react, whose React deps this filtered install omits.
+RUN pnpm exec tsc --build ../../lib/db ../../lib/api-zod \
+ && pnpm run typecheck \
+ && pnpm run build
 
 # ---------------------------------------------------------------------------
 # Stage 2 — runtime
