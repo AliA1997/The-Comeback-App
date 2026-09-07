@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { SkeletonList } from '@/shared/ui/SkeletonList';
 import { useColors } from '@/shared/theme/useColors';
-import { ActiveTimerBanner } from '@/domains/time-focus/components/ActiveTimerBanner';
+import { useTabBarInset } from '@/shared/ui/tabBarMetrics';
 import { ListCard } from '../components/ListCard';
 import { useLists } from '../hooks/useLists';
 import type { List } from '../types';
@@ -20,6 +20,7 @@ import type { List } from '../types';
 export function ListsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const tabBarInset = useTabBarInset();
   const router = useRouter();
   const { lists, isLoading, isError, refetch } = useLists();
 
@@ -47,7 +48,7 @@ export function ListsScreen() {
           styles.content,
           {
             paddingTop: Platform.OS === 'web' ? insets.top + 67 : insets.top + 16,
-            paddingBottom: 120 + (Platform.OS === 'web' ? 34 : 0),
+            paddingBottom: tabBarInset,
           },
         ]}
         showsVerticalScrollIndicator={false}
@@ -70,7 +71,6 @@ export function ListsScreen() {
           </TouchableOpacity>
         </View>
 
-        <ActiveTimerBanner />
 
         {isLoading ? (
           <SkeletonList count={4} rowHeight={72} />

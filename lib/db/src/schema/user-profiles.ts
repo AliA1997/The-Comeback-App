@@ -25,6 +25,13 @@ export const userProfilesTable = comebackapp.table("user_profiles", {
   id: uuid("id")
     .primaryKey()
     .references(() => authUsers.id, { onDelete: "cascade" }),
+  /**
+   * Mirrored from the `email` claim on the access token at first sign-in and
+   * refreshed whenever it changes. `auth.users` is the source of truth; this
+   * copy exists so the API can serve a profile without reaching into
+   * Supabase auth schema on every read.
+   */
+  email: text("email"),
   displayName: text("display_name"),
   careerTrack: text("career_track"),
   seniority: text("seniority"),

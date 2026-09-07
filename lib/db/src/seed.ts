@@ -3,6 +3,9 @@
  * the system task types. Idempotent — run after every `drizzle-kit push`.
  *
  *   pnpm --filter @workspace/db run seed
+ *
+ * `DATABASE_URL` must point at the Supabase project's own Postgres: the schema
+ * foreign-keys to `auth.users`, which exists nowhere else.
  */
 import { readFile } from "node:fs/promises";
 import path from "node:path";
@@ -13,9 +16,33 @@ import { SYSTEM_TASK_TYPES, taskTypesTable } from "./schema";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
-async function applyPolicies(): Promise<void> {
-  const ddl = await readFile(path.join(here, "policies.sql"), "utf8");
+async function execFile(name: string): Promise<void> {
+  const ddl = await readFile(path.join(here, name), "utf8");
   await db.execute(sql.raw(ddl));
+}
+
+/**
+ * The trigger is applied on its own and is allowed to fail.
+ *
+ * It touches Supabase's `auth` schema, which the project's Postgres role may
+ * not own. A batch failure here would otherwise take the RLS policies down
+ * with it — and the trigger is the one piece that is genuinely optional,
+ * because the API upserts the profile on the first authenticated request
+ * (spec § 5.2).
+ */
+async function applyAuthTrigger(): Promise<boolean> {
+  try {
+    await execFile("auth-trigger.sql");
+    return true;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.warn(
+      `! Could not install the auth.users trigger: ${message}\n` +
+        "  This is not fatal — the API creates the profile row on the first\n" +
+        "  authenticated request instead. Sign-in is unaffected.",
+    );
+    return false;
+  }
 }
 
 async function seedTaskTypes(): Promise<void> {
@@ -34,9 +61,16 @@ async function seedTaskTypes(): Promise<void> {
 }
 
 async function main(): Promise<void> {
-  await applyPolicies();
+  await execFile("policies.sql");
+  console.log("✓ Row Level Security policies applied");
+
+  const triggerInstalled = await applyAuthTrigger();
+  if (triggerInstalled) console.log("✓ auth.users → user_profiles trigger installed");
+
   await seedTaskTypes();
-  console.log(`Seeded ${SYSTEM_TASK_TYPES.length} task types and applied policies.`);
+  console.log(`✓ ${SYSTEM_TASK_TYPES.length} task types seeded`);
+
+  console.log("\nDone. The app can now create lists and tasks.");
 }
 
 main()

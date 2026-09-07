@@ -20,18 +20,52 @@ import { parseOrThrow } from "../lib/validate";
 
 const router: IRouter = Router();
 
-async function ensureProfile(userId: string): Promise<UserProfileRow> {
+/**
+ * Returns the caller's profile, creating it on first sight.
+ *
+ * Called on every authenticated profile read, which makes it the app's
+ * de-facto "on login" hook: the client fetches the profile as soon as a
+ * session exists, so the row is created there and then.
+ *
+ * `email` comes from the access token rather than the request body — the
+ * client cannot claim to be an address it did not authenticate as.
+ * `auth.users` remains the source of truth; this is a mirror kept current so
+ * reads never have to cross into Supabase's auth schema.
+ */
+async function ensureProfile(
+  userId: string,
+  email: string | undefined,
+): Promise<UserProfileRow> {
   const [existing] = await db
     .select()
     .from(userProfilesTable)
     .where(eq(userProfilesTable.id, userId))
     .limit(1);
 
-  if (existing) return existing;
+  if (existing) {
+    // Backfills rows written before this column existed, and follows an
+    // address the user changed with their provider. Only writes when the
+    // value actually differs, so a normal read stays a single SELECT.
+    if (email && existing.email !== email) {
+      const [updated] = await db
+        .update(userProfilesTable)
+        .set({ email, updatedAt: new Date() })
+        .where(eq(userProfilesTable.id, userId))
+        .returning();
+
+      return updated ?? existing;
+    }
+
+    return existing;
+  }
 
   const [created] = await db
     .insert(userProfilesTable)
-    .values({ id: userId, preferences: DEFAULT_USER_PREFERENCES })
+    .values({
+      id: userId,
+      ...(email === undefined ? {} : { email }),
+      preferences: DEFAULT_USER_PREFERENCES,
+    })
     .onConflictDoNothing()
     .returning();
 
@@ -49,14 +83,14 @@ async function ensureProfile(userId: string): Promise<UserProfileRow> {
 
 router.get("/me/profile", async (req, res) => {
   const userId = userIdOf(req);
-  res.json(toProfile(await ensureProfile(userId)));
+  res.json(toProfile(await ensureProfile(userId, req.userEmail)));
 });
 
 router.patch("/me/profile", async (req, res) => {
   const userId = userIdOf(req);
   const body = parseOrThrow(UpdateProfileBody, req.body);
 
-  const current = await ensureProfile(userId);
+  const current = await ensureProfile(userId, req.userEmail);
 
   const [row] = await db
     .update(userProfilesTable)

@@ -8,6 +8,8 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import type { List } from '@workspace/api-client-react';
+import { writeErrorMessage } from '@/shared/api/errorMessage';
+import { useToast } from '@/shared/ui/ToastProvider';
 import {
   invalidateLists,
   useCreateList as useCreateListMutation,
@@ -41,15 +43,28 @@ export function useList(listId: string | undefined): List | null {
 
 export function useCreateList() {
   const client = useQueryClient();
+  const { show } = useToast();
+
   return useCreateListMutation({
-    mutation: { onSuccess: () => invalidateLists(client) },
+    mutation: {
+      onSuccess: () => invalidateLists(client),
+      // A duplicate name is a 409 whose body already says so; anything else
+      // falls back to the neutral retry line. Either way the user hears
+      // something, which is the whole point of AC-2.
+      onError: (error) => show(writeErrorMessage(error)),
+    },
   });
 }
 
 export function useUpdateList() {
   const client = useQueryClient();
+  const { show } = useToast();
+
   return useUpdateListMutation({
-    mutation: { onSuccess: () => invalidateLists(client) },
+    mutation: {
+      onSuccess: () => invalidateLists(client),
+      onError: (error) => show(writeErrorMessage(error)),
+    },
   });
 }
 

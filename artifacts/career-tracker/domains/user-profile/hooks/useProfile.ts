@@ -9,6 +9,7 @@
  * that snaps back while a round trip completes reads as broken, not as honest.
  */
 import { useQueryClient } from '@tanstack/react-query';
+import { useAuthStatus } from '@/domains/auth/selectors';
 import { queryKeys } from '@/shared/api/queryKeys';
 import { useToast } from '@/shared/ui/ToastProvider';
 import {
@@ -30,6 +31,25 @@ export function useProfile(): {
     isLoading: query.isLoading,
     isError: query.isError,
   };
+}
+
+/**
+ * Loads the profile the moment a session exists.
+ *
+ * `GET /api/me/profile` creates the row if it is missing and stamps it with
+ * the email from the access token, so this is what turns "signed in" into
+ * "has a profile". Mounted once at the root: the query lands in the React
+ * Query cache, which is where the profile lives app-wide (§ 8.3 — if the
+ * server can send it, React Query owns it), so every screen and
+ * `readCachedProfile()` see it without a second request.
+ *
+ * Disabled while signed out so it never fires a request that can only 401.
+ */
+export function useEnsureProfile(): void {
+  const status = useAuthStatus();
+  useGetProfile({
+    query: { queryKey: queryKeys.profile(), enabled: status === 'signedIn' },
+  });
 }
 
 /** The display name, or an empty string before the profile lands. */

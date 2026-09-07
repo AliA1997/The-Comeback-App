@@ -71,6 +71,7 @@ export function toProfile(row: UserProfileRow): Profile {
 
   return {
     id: row.id,
+    email: row.email,
     displayName: row.displayName,
     careerTrack: row.careerTrack,
     seniority: row.seniority,

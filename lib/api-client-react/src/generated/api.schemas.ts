@@ -203,6 +203,8 @@ export interface UserPreferences {
 export interface Profile {
   id: string;
   /** @nullable */
+  email?: string | null;
+  /** @nullable */
   displayName?: string | null;
   /** @nullable */
   careerTrack?: string | null;

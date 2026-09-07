@@ -675,6 +675,7 @@ export const ListTaskTypesResponse = zod.array(ListTaskTypesResponseItem);
  */
 export const GetProfileResponse = zod.object({
   id: zod.string().uuid(),
+  email: zod.string().email().nullish(),
   displayName: zod.string().nullish(),
   careerTrack: zod.string().nullish(),
   seniority: zod.string().nullish(),
@@ -728,6 +729,7 @@ export const UpdateProfileBody = zod.object({
 
 export const UpdateProfileResponse = zod.object({
   id: zod.string().uuid(),
+  email: zod.string().email().nullish(),
   displayName: zod.string().nullish(),
   careerTrack: zod.string().nullish(),
   seniority: zod.string().nullish(),

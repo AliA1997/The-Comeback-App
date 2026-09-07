@@ -22,6 +22,7 @@ import { useAuthStatus } from '@/domains/auth/selectors';
 import { NudgeProvider } from '@/domains/notifications/components/NudgeProvider';
 import { NotificationService } from '@/domains/notifications/services/NotificationService';
 import { useLocalTaskMigration } from '@/domains/task-planning/hooks/useLocalTaskMigration';
+import { useEnsureProfile } from '@/domains/user-profile/hooks/useProfile';
 import { TimerProvider } from '@/domains/time-focus/components/TimerProvider';
 
 SplashScreen.preventAutoHideAsync();
@@ -98,6 +99,8 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
  */
 function SignedInEffects() {
   useLocalTaskMigration();
+  // Creates the profile row on first login and keeps it in the query cache.
+  useEnsureProfile();
   return null;
 }
 

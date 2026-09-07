@@ -20,6 +20,12 @@ declare global {
     interface Request {
       /** The authenticated Supabase user id. Set by `requireAuth`. */
       userId?: string;
+      /**
+       * The `email` claim from the access token, when the provider supplied
+       * one. Optional by nature: not every identity carries a verified email,
+       * so no route may require it.
+       */
+      userEmail?: string;
     }
   }
 }
@@ -97,6 +103,11 @@ export const requireAuth: RequestHandler = (
         return;
       }
       req.userId = payload.sub;
+      // Supabase puts the verified address in the `email` claim. Anything
+      // else in that slot is not an email and is ignored rather than stored.
+      if (typeof payload["email"] === "string" && payload["email"].trim()) {
+        req.userEmail = payload["email"].trim();
+      }
       next();
     })
     .catch((err: unknown) => {

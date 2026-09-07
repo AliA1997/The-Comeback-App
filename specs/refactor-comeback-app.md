@@ -207,6 +207,7 @@ part of the server enum — it is a daily-routine concept, not a task state.
 | Column | Type | Notes |
 |---|---|---|
 | `id` | `uuid` PK | FK → `auth.users(id)` ON DELETE CASCADE |
+| `email` | `text` | mirrored from the access token; see below |
 | `display_name` | `text` | |
 | `career_track` | `text` | matches the `CareerTrack` union |
 | `seniority` | `text` | matches the `Seniority` union |
@@ -219,6 +220,24 @@ part of the server enum — it is a daily-routine concept, not a task state.
 A row is created by an `AFTER INSERT` trigger on `auth.users`, with the API
 falling back to an upsert on the first authenticated request so a missed
 trigger never blocks sign-in.
+
+**Profile on sign-in.** `GET /api/me/profile` is the login hook: the client
+issues it as soon as a session exists (`useEnsureProfile`, mounted once in
+`SignedInEffects`), and the handler reads the row, creating it if absent. The
+result lands in the React Query cache, which is where the profile lives
+app-wide — no Zustand mirror, per § 8.3.
+
+`email` is taken from the access token's `email` claim, never from a request
+body: a client cannot claim to be an address it did not authenticate as. It is
+set on insert and refreshed on read whenever the token's value differs, which
+backfills rows written before the column existed and follows an address the
+user changed with their provider. A normal read stays a single `SELECT`.
+`auth.users` remains the source of truth; this copy exists so profile reads
+never cross into Supabase's auth schema. The claim is optional — not every
+identity carries a verified email — so no route may require it.
+
+Because the column holds personal data, the owner RLS policies of § 5.7 are a
+precondition for storing it, not an optional hardening step (Principle VI).
 
 ### 5.3 `comebackapp.lists`
 

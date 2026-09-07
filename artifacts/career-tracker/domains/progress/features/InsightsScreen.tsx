@@ -4,9 +4,8 @@ import { useRouter } from 'expo-router';
 import React, { useMemo } from 'react';
 import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ScorePill } from '@/shared/ui/ScorePill';
-import { SkeletonList } from '@/shared/ui/SkeletonList';
 import { useColors } from '@/shared/theme/useColors';
+import { useTabBarInset } from '@/shared/ui/tabBarMetrics';
 import { getLastNDays } from '@/shared/lib/dateUtils';
 import type { TaskCategory } from '@/shared/types/skills';
 import { taskCategory, taskDate } from '@/shared/types/task';
@@ -28,6 +27,7 @@ const CATEGORY_DESCRIPTIONS: Record<TaskCategory, string> = {
 export function InsightsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const tabBarInset = useTabBarInset();
   const router = useRouter();
   const { tasks, isLoading } = useTasks();
   const dayRecords = useDayRecords();
@@ -68,7 +68,7 @@ export function InsightsScreen() {
           styles.content,
           {
             paddingTop: Platform.OS === 'web' ? insets.top + 67 : insets.top + 16,
-            paddingBottom: 120 + (Platform.OS === 'web' ? 34 : 0),
+            paddingBottom: tabBarInset,
           },
         ]}
         showsVerticalScrollIndicator={false}

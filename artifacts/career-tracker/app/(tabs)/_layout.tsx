@@ -6,7 +6,10 @@ import { SymbolView } from 'expo-symbols';
 import { Feather } from '@expo/vector-icons';
 import React from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ActiveTimerBanner } from '@/domains/time-focus';
 import { useColors } from '@/shared/theme/useColors';
+import { useTabBarHeight } from '@/shared/ui/tabBarMetrics';
 
 function NativeTabLayout() {
   return (
@@ -41,6 +44,8 @@ function NativeTabLayout() {
 
 function ClassicTabLayout() {
   const colors = useColors();
+  const insets = useSafeAreaInsets();
+  const tabBarHeight = useTabBarHeight();
   const isIOS = Platform.OS === 'ios';
   const isWeb = Platform.OS === 'web';
 
@@ -50,13 +55,17 @@ function ClassicTabLayout() {
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.mutedForeground,
         headerShown: false,
+        // The height is declared rather than left implicit so that
+        // `useTabBarHeight` — which screens pad from and the timer dock
+        // positions against — describes the bar that actually renders (AC-5).
         tabBarStyle: {
           position: 'absolute',
           backgroundColor: isIOS ? 'transparent' : colors.card,
           borderTopWidth: 1,
           borderTopColor: colors.border,
           elevation: 0,
-          ...(isWeb ? { height: 84 } : {}),
+          height: tabBarHeight,
+          paddingBottom: isWeb ? 0 : insets.bottom,
         },
         tabBarBackground: () =>
           isIOS ? (
@@ -118,9 +127,41 @@ function ClassicTabLayout() {
   );
 }
 
-export default function TabLayout() {
-  if (isLiquidGlassAvailable()) {
-    return <NativeTabLayout />;
-  }
-  return <ClassicTabLayout />;
+/**
+ * Docks the active-timer banner just above the tab bar, on every tab.
+ *
+ * It used to be mounted inside DashboardScreen and ListsScreen only, which
+ * left a running session invisible on Tasks, Learn, Insights and Profile —
+ * and reachable only by navigating back to the dashboard first (spec AC-7,
+ * Principles IV and V).
+ *
+ * `box-none` lets taps fall through everywhere except on the banner itself,
+ * so docking it costs the screen underneath nothing. The banner renders null
+ * when no task is active, so this is inert the rest of the time.
+ */
+function ActiveTimerDock() {
+  const tabBarHeight = useTabBarHeight();
+
+  return (
+    <View
+      pointerEvents="box-none"
+      style={[styles.dock, { bottom: tabBarHeight + 12 }]}
+    >
+      <ActiveTimerBanner />
+    </View>
+  );
 }
+
+export default function TabLayout() {
+  return (
+    <View style={styles.root}>
+      {isLiquidGlassAvailable() ? <NativeTabLayout /> : <ClassicTabLayout />}
+      <ActiveTimerDock />
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  root: { flex: 1 },
+  dock: { position: 'absolute', left: 16, right: 16 },
+});

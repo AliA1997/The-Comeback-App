@@ -22,6 +22,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { useColors } from '@/shared/theme/useColors';
+import { useTabBarInset } from '@/shared/ui/tabBarMetrics';
 import { useAppStore } from '@/shared/store/root';
 import { useUpdateProfile } from '../hooks/useProfile';
 import {
@@ -36,6 +37,10 @@ type Step = 0 | 1 | 2 | 3;
 export function OnboardingWizard() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  // The wizard renders inside a tab screen, so both the pinned footer and the
+  // scroll content behind it have to clear the floating tab bar (spec AC-6).
+  const footerInset = useTabBarInset(16);
+  const scrollInset = useTabBarInset(120);
   const completeOnboarding = useAppStore((s) => s.completeOnboarding);
   const updateProfile = useUpdateProfile();
 
@@ -86,7 +91,7 @@ export function OnboardingWizard() {
           styles.content,
           {
             paddingTop: insets.top + (Platform.OS === 'web' ? 56 : 24),
-            paddingBottom: insets.bottom + 120,
+            paddingBottom: scrollInset,
           },
         ]}
         keyboardShouldPersistTaps="handled"
@@ -235,7 +240,7 @@ export function OnboardingWizard() {
           {
             backgroundColor: colors.background,
             borderTopColor: colors.border,
-            paddingBottom: insets.bottom + 16,
+            paddingBottom: footerInset,
           },
         ]}
       >

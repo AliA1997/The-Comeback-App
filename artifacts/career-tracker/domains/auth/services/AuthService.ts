@@ -62,7 +62,16 @@ export async function signInWithProvider(provider: OAuthProvider): Promise<void>
   try {
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider,
-      options: { redirectTo: REDIRECT_URL, skipBrowserRedirect: true },
+      options: {
+        redirectTo: REDIRECT_URL,
+        skipBrowserRedirect: true,
+        // Android runs this in a Chrome Custom Tab, which shares cookies with
+        // Chrome. Without an explicit prompt the provider sees a live session,
+        // silently re-issues a token for the account already signed in, and a
+        // second account can never get in at all — every sign-in lands on the
+        // same user. Forcing the chooser is the fix (spec AC-3).
+        queryParams: { prompt: 'select_account' },
+      },
     });
 
     if (error) throw error;
@@ -110,9 +119,29 @@ export async function completeSignIn(callbackUrl: string): Promise<void> {
  * Signs out and drops every cached server response. Local Zustand state (the
  * daily plan, learning progress, achievements) is left intact — it belongs to
  * the device, and wiping it would punish someone for signing out.
+ *
+ * The cache is cleared before the session is nulled so no query can refetch
+ * against the outgoing user and repopulate on the way out — the next account
+ * must start from an empty cache, not the previous one's lists (spec AC-4).
+ *
+ * On the browser side `coolDownAsync` releases the warmed Custom Tabs service
+ * so the next sign-in opens a fresh tab. It does NOT clear the provider's
+ * cookies: expo-web-browser exposes no such API, and the only way to drop a
+ * Google session from here would be to navigate the user through Google's own
+ * logout, signing them out of every other Google product on the device. That
+ * trade is not worth it, which is why the account chooser in
+ * `signInWithProvider` — not cookie clearing — is what guarantees the right
+ * account is used.
  */
 export async function signOut(): Promise<void> {
   await supabase.auth.signOut();
   queryClient.clear();
+
+  try {
+    await WebBrowser.coolDownAsync();
+  } catch {
+    // Not supported on every platform, and never worth failing a sign-out for.
+  }
+
   useAppStore.getState().setAuthSession(null);
 }

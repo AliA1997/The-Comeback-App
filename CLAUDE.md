@@ -41,6 +41,7 @@ This file and the documents in [`specs/`](specs/) are the only project documenta
 |---|---|
 | [`specs/daily-task-list.md`](specs/daily-task-list.md) | Daily task generation, one-tap completion, streak rules, day rollover |
 | [`specs/refactor-comeback-app.md`](specs/refactor-comeback-app.md) | Lists, task types and scoring, priority levels, task lifecycle, Supabase auth, the `comebackapp` schema, and the frontend standard |
+| [`specs/backend-write-failures-and-ui-placement.md`](specs/backend-write-failures-and-ui-placement.md) | Backend write failures (lists, tasks, profiles), OAuth account switching, tab-bar layout, timer visibility |
 
 Each spec states which core principles it serves, and carries its own acceptance criteria, edge cases, and error conditions. Product changes are made by amending a spec, not by editing code first.
 
@@ -127,6 +128,20 @@ that answers without a token.
 
 After the first deploy, run `push` then `seed` against the same database, or
 task creation has no task types to reference.
+
+### Building the app
+
+`eas build -p android --profile preview` produces the installable APK;
+`--profile production` produces the Play Store AAB.
+
+Both profiles pin `"node": "22.23.1"`. EAS images default to Node 20, and the
+repo's `packageManager: "pnpm@11.9.0"` needs Node >= 22.13 for `node:sqlite` —
+without the pin the install phase fails with `ERR_UNKNOWN_BUILTIN_MODULE`
+before any app code is reached. A new build profile must copy that key.
+
+The two `EXPO_PUBLIC_SUPABASE_*` values live as EAS environment variables, not
+in `eas.json`. Note that an `env` entry in `eas.json` OVERRIDES the EAS-hosted
+variable of the same name, so an empty string there silently wins.
 
 ## Standards
 

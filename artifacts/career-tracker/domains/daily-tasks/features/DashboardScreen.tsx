@@ -10,10 +10,10 @@ import { QuickStatsRow } from '@/shared/ui/QuickStatsRow';
 import { ScorePill } from '@/shared/ui/ScorePill';
 import { SkeletonList } from '@/shared/ui/SkeletonList';
 import { useColors } from '@/shared/theme/useColors';
+import { useTabBarInset } from '@/shared/ui/tabBarMetrics';
 import { todayStr } from '@/shared/lib/dateUtils';
 import { useHydrationState } from '@/shared/store/root';
 import { taskDate, type Task } from '@/shared/types/task';
-import { ActiveTimerBanner } from '@/domains/time-focus/components/ActiveTimerBanner';
 import { useIdleDetection } from '@/domains/time-focus/hooks/useIdleDetection';
 import { TaskCard } from '@/domains/task-planning/components/TaskCard';
 import { useEarnedScore, useTasks } from '@/domains/task-planning/hooks/useTasks';
@@ -40,6 +40,7 @@ function greetingText(): string {
 export function DashboardScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const tabBarInset = useTabBarInset();
   const router = useRouter();
 
   // Granular subscriptions — this screen does NOT re-render on timer ticks.
@@ -114,7 +115,7 @@ export function DashboardScreen() {
           styles.content,
           {
             paddingTop: Platform.OS === 'web' ? insets.top + 67 : insets.top + 16,
-            paddingBottom: 120 + (Platform.OS === 'web' ? 34 : 0),
+            paddingBottom: tabBarInset,
           },
         ]}
         showsVerticalScrollIndicator={false}
@@ -148,7 +149,6 @@ export function DashboardScreen() {
           streak={streak}
         />
 
-        <ActiveTimerBanner />
 
         <DailyPlanCard />
 

@@ -17,6 +17,7 @@ import { EmptyState } from '@/shared/ui/EmptyState';
 import { ScorePill } from '@/shared/ui/ScorePill';
 import { SkeletonList } from '@/shared/ui/SkeletonList';
 import { useColors } from '@/shared/theme/useColors';
+import { useTabBarInset } from '@/shared/ui/tabBarMetrics';
 import { TASK_CATEGORIES, type TaskCategory } from '@/shared/types/skills';
 import { PRIORITY_RANK, taskCategory, type Task } from '@/shared/types/task';
 import { TaskCard } from '../components/TaskCard';
@@ -31,6 +32,7 @@ const VIRTUALISATION_THRESHOLD = 50;
 export function TasksScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const tabBarInset = useTabBarInset();
   const router = useRouter();
 
   const [selectedCategory, setSelectedCategory] = useState<TaskCategory | 'All'>('All');
@@ -204,7 +206,7 @@ export function TasksScreen() {
           styles.content,
           {
             paddingTop: Platform.OS === 'web' ? insets.top + 67 : insets.top + 16,
-            paddingBottom: 120,
+            paddingBottom: tabBarInset,
           },
         ]}
         showsVerticalScrollIndicator={false}

@@ -60,7 +60,7 @@ const styles = StyleSheet.create({
     padding: 14,
     borderRadius: 14,
     borderWidth: 1.5,
-    marginBottom: 16,
+    elevation: 8,
   },
   dot: { width: 8, height: 8, borderRadius: 4 },
   body: { flex: 1, gap: 2 },

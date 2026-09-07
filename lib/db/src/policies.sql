@@ -1,37 +1,10 @@
--- Row Level Security + the auth.users profile trigger.
+-- Row Level Security for the comebackapp tables.
 --
 -- `drizzle-kit push` reconciles tables, indexes and enums but not policies,
 -- triggers or functions, so these live here and are applied by `pnpm seed`.
 -- Every statement is idempotent and safe to re-run.
 --
--- Spec: refactor-comeback-app.md § 5.2 (trigger) and § 5.7 (privacy).
-
--- ---------------------------------------------------------------------------
--- § 5.2 — a user_profiles row exists for every auth user
--- ---------------------------------------------------------------------------
-
-CREATE OR REPLACE FUNCTION comebackapp.handle_new_auth_user()
-RETURNS trigger
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = comebackapp, pg_temp
-AS $$
-BEGIN
-  INSERT INTO comebackapp.user_profiles (id, display_name)
-  VALUES (
-    NEW.id,
-    COALESCE(NEW.raw_user_meta_data ->> 'full_name', NEW.raw_user_meta_data ->> 'name')
-  )
-  ON CONFLICT (id) DO NOTHING;
-  RETURN NEW;
-END;
-$$;
-
-DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
-
-CREATE TRIGGER on_auth_user_created
-AFTER INSERT ON auth.users
-FOR EACH ROW EXECUTE FUNCTION comebackapp.handle_new_auth_user();
+-- Spec: refactor-comeback-app.md § 5.7 (privacy).
 
 -- ---------------------------------------------------------------------------
 -- § 5.7 — RLS as defence in depth. The Express API is the only client and

@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScorePill } from '@/shared/ui/ScorePill';
 import { SkeletonList } from '@/shared/ui/SkeletonList';
 import { useColors } from '@/shared/theme/useColors';
+import { useTabBarInset } from '@/shared/ui/tabBarMetrics';
 import { useAppStore } from '@/shared/store/root';
 import { signOut } from '@/domains/auth/services/AuthService';
 import { useAuthUser } from '@/domains/auth/selectors';
@@ -36,6 +37,7 @@ import {
 export function ProfileScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const tabBarInset = useTabBarInset();
   const router = useRouter();
 
   const { profile, isLoading } = useProfile();
@@ -110,7 +112,7 @@ export function ProfileScreen() {
           styles.content,
           {
             paddingTop: Platform.OS === 'web' ? insets.top + 67 : insets.top + 16,
-            paddingBottom: 120 + (Platform.OS === 'web' ? 34 : 0),
+            paddingBottom: tabBarInset,
           },
         ]}
         showsVerticalScrollIndicator={false}

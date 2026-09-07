@@ -1,5 +1,6 @@
 import app from "./app";
 import { logger } from "./lib/logger";
+import { checkDatabaseTarget } from "./lib/preflight";
 
 const rawPort = process.env["PORT"];
 
@@ -22,4 +23,9 @@ app.listen(port, (err) => {
   }
 
   logger.info({ port }, "Server listening");
+
+  // Runs after listen, never before: /api/healthz has to answer for the
+  // platform health check even when the database is misconfigured, and a
+  // container that boots and explains itself beats one that crash-loops.
+  void checkDatabaseTarget();
 });

@@ -4,6 +4,7 @@ import React, { useMemo } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors } from '@/shared/theme/useColors';
+import { useTabBarInset } from '@/shared/ui/tabBarMetrics';
 import { CategoryBadge } from '@/shared/ui/CategoryBadge';
 import {
   LESSONS,
@@ -16,6 +17,7 @@ import { useCareerTrack } from '@/domains/user-profile/hooks/useProfile';
 export function LearnScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const tabBarInset = useTabBarInset();
   const router = useRouter();
   const progress = useAllLessonProgress();
   const careerTrack = useCareerTrack();
@@ -60,7 +62,7 @@ export function LearnScreen() {
           styles.content,
           {
             paddingTop: Platform.OS === 'web' ? insets.top + 67 : insets.top + 16,
-            paddingBottom: 120 + (Platform.OS === 'web' ? 34 : 0),
+            paddingBottom: tabBarInset,
           },
         ]}
         showsVerticalScrollIndicator={false}
