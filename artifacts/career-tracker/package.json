@@ -11,7 +11,10 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "node --import tsx --test \"domains/**/*.test.ts\"",
     "start:web": "expo start --web",
-    "start:clear": "expo start --clear"
+    "start:clear": "expo start --clear",
+    "build:preview": "npx --yes eas-cli@23 build -p android --profile preview",
+    "build:production": "npx --yes eas-cli@23 build -p android --profile production",
+    "build:list": "npx --yes eas-cli@23 build:list --platform android --limit 5"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
