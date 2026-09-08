@@ -30,6 +30,14 @@ export const queryClient = new QueryClient({
   },
 });
 
+/**
+ * False when the app was bundled without `EXPO_PUBLIC_API_URL`. Mirrors
+ * `isSupabaseConfigured`: a missing build-time variable is a configuration
+ * fault, and it should read as one rather than as every screen failing for its
+ * own mysterious reason.
+ */
+export const isApiConfigured = Boolean(process.env.EXPO_PUBLIC_API_URL);
+
 let configured = false;
 
 /**
@@ -41,7 +49,18 @@ export function configureApiClient(): void {
   configured = true;
 
   const baseUrl = process.env.EXPO_PUBLIC_API_URL;
-  if (baseUrl) setBaseUrl(baseUrl);
+  if (baseUrl) {
+    setBaseUrl(baseUrl);
+  } else {
+    // Without a base URL every generated call requests a relative path, which
+    // has no host to resolve against in a release bundle. Silence here turns
+    // one missing EAS variable into "the whole app is broken and nothing says
+    // why", so say why.
+    console.error(
+      '[api] EXPO_PUBLIC_API_URL is not set. Every API request will fail until ' +
+        'the build supplies it (eas.json env, or an EAS-hosted variable).',
+    );
+  }
 
   setAuthTokenGetter(getAccessToken);
 }

@@ -8,7 +8,10 @@
  * especially on the first screen someone ever sees (Principle III).
  *
  * On any failure it falls back to showing every provider, so a flaky network
- * never leaves the user with no way in.
+ * never leaves the user with no way in — which is also why the request is
+ * bounded: `isLoading` feeds `busy` on the sign-in screen, and React Native's
+ * fetch never times out, so a socket that opens and stalls would disable every
+ * provider button for as long as the screen is open.
  */
 import { useEffect, useState } from 'react';
 import { isSupabaseConfigured } from '@/shared/lib/supabase';
@@ -17,6 +20,9 @@ import { SUPPORTED_PROVIDERS, type OAuthProvider } from '../types';
 interface SettingsResponse {
   external?: Record<string, boolean>;
 }
+
+/** Long enough for a cold Supabase edge, short enough to not strand a sign-in. */
+const PROBE_TIMEOUT_MS = 8_000;
 
 export function useEnabledProviders(): {
   providers: ReadonlyArray<OAuthProvider>;
@@ -34,8 +40,12 @@ export function useEnabledProviders(): {
     const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
     let cancelled = false;
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS);
+
     fetch(`${url.replace(/\/+$/, '')}/auth/v1/settings`, {
       headers: { apikey: anonKey },
+      signal: controller.signal,
     })
       .then((response) => (response.ok ? response.json() : null))
       .then((settings: SettingsResponse | null) => {
@@ -52,11 +62,14 @@ export function useEnabledProviders(): {
         // Keep the default list — see the docblock.
       })
       .finally(() => {
+        clearTimeout(timeoutId);
         if (!cancelled) setIsLoading(false);
       });
 
     return () => {
       cancelled = true;
+      clearTimeout(timeoutId);
+      controller.abort();
     };
   }, []);
 

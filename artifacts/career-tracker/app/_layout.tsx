@@ -27,10 +27,17 @@ import { TimerProvider } from '@/domains/time-focus/components/TimerProvider';
 
 SplashScreen.preventAutoHideAsync();
 
-// Initialize service singletons once at module scope.
+// Initialize service singletons once at module scope. The two async ones are
+// caught explicitly: this runs during module evaluation, above every error
+// boundary in the tree, so a rejection here has nowhere to land — and once
+// these stubs become real SDKs, rejecting is exactly what they will do.
 configureApiClient();
-AdService.initialize();
-NotificationService.initialize();
+void AdService.initialize().catch((error: unknown) => {
+  console.warn('[AdService] initialize failed', error);
+});
+void NotificationService.initialize().catch((error: unknown) => {
+  console.warn('[NotificationService] initialize failed', error);
+});
 
 const MODAL_SCREENS = [
   'timer',

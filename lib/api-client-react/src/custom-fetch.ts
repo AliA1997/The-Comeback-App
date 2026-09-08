@@ -1,5 +1,10 @@
 export type CustomFetchOptions = RequestInit & {
   responseType?: "json" | "text" | "blob" | "auto";
+  /**
+   * Abort the request after this many milliseconds. Defaults to
+   * `DEFAULT_TIMEOUT_MS`; pass `0` to wait indefinitely.
+   */
+  timeoutMs?: number;
 };
 
 export type ErrorType<T = unknown> = ApiError<T>;
@@ -7,6 +12,15 @@ export type ErrorType<T = unknown> = ApiError<T>;
 export type BodyType<T> = T;
 
 export type AuthTokenGetter = () => Promise<string | null> | string | null;
+
+/**
+ * React Native's `fetch` has no timeout of its own: a socket that is opened
+ * and never answered — a captive portal, a sleeping container, a network that
+ * dropped mid-flight — leaves the promise pending forever. React Query cannot
+ * retry its way out of a promise that never settles, so the screen renders a
+ * spinner that never stops. Every request gets an upper bound.
+ */
+const DEFAULT_TIMEOUT_MS = 30_000;
 
 const NO_BODY_STATUS = new Set([204, 205, 304]);
 const DEFAULT_JSON_ACCEPT = "application/json, application/problem+json";
@@ -327,7 +341,12 @@ export async function customFetch<T = unknown>(
   options: CustomFetchOptions = {},
 ): Promise<T> {
   input = applyBaseUrl(input);
-  const { responseType = "auto", headers: headersInit, ...init } = options;
+  const {
+    responseType = "auto",
+    headers: headersInit,
+    timeoutMs = DEFAULT_TIMEOUT_MS,
+    ...init
+  } = options;
 
   const method = resolveMethod(input, init.method);
 
@@ -360,12 +379,36 @@ export async function customFetch<T = unknown>(
 
   const requestInfo = { method, url: resolveUrl(input) };
 
-  const response = await fetch(input, { ...init, method, headers });
+  // The timeout covers reading the body as well as opening the connection: a
+  // response that starts and then stalls is the same dead spinner to the user.
+  const controller = timeoutMs > 0 ? new AbortController() : undefined;
+  const callerSignal = init.signal;
 
-  if (!response.ok) {
-    const errorData = await parseErrorBody(response, method);
-    throw new ApiError(response, errorData, requestInfo);
+  if (controller && callerSignal) {
+    if (callerSignal.aborted) controller.abort();
+    else callerSignal.addEventListener("abort", () => controller.abort(), { once: true });
   }
 
-  return (await parseSuccessBody(response, responseType, requestInfo)) as T;
+  const timeoutId =
+    controller !== undefined
+      ? setTimeout(() => controller.abort(), timeoutMs)
+      : undefined;
+
+  try {
+    const response = await fetch(input, {
+      ...init,
+      method,
+      headers,
+      signal: controller ? controller.signal : callerSignal,
+    });
+
+    if (!response.ok) {
+      const errorData = await parseErrorBody(response, method);
+      throw new ApiError(response, errorData, requestInfo);
+    }
+
+    return (await parseSuccessBody(response, responseType, requestInfo)) as T;
+  } finally {
+    if (timeoutId !== undefined) clearTimeout(timeoutId);
+  }
 }

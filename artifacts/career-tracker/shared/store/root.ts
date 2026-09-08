@@ -107,13 +107,28 @@ export const useAppStore = create<RootState>()(
     {
       name: 'career-tracker-store',
       storage: createJSONStorage(() => AsyncStorage),
+      // Bump when a slice's persisted shape changes, and add a `migrate` for
+      // the old shape. Without a version, an upgraded app reads yesterday's
+      // payload with today's selectors — and unlike the web, the user has no
+      // way to clear it.
+      version: 1,
       // The Supabase session is the authority on auth, and it has its own
       // AsyncStorage store — a second persisted copy could disagree with it
       // after a token refresh, so the auth slice is rehydrated from Supabase
       // by `AuthService.bootstrap()` instead of from here.
       partialize: ({ authStatus, authUser, authError, ...rest }) => rest,
-      onRehydrateStorage: () => (state) => {
-        state?.setHasHydrated(true);
+      // A failed rehydration must still end in a hydrated store. `_hasHydrated`
+      // gates the daily plan card and the dashboard's onboarding and empty
+      // states, so leaving it false on error renders a permanently blank
+      // dashboard — the core loop — with no error surfaced anywhere. Boot from
+      // defaults instead. Rehydration is always async here (AsyncStorage), so
+      // the store is assigned by the time this callback runs.
+      onRehydrateStorage: () => (state, error) => {
+        if (error) {
+          console.warn('[store] rehydration failed; starting from defaults', error);
+        }
+        if (state) state.setHasHydrated(true);
+        else useAppStore.setState({ _hasHydrated: true });
       },
     }
   )
